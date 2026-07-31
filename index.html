@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Zyklus – Trainingsplan</title>
+<meta name="description" content="Trainingsplan im 2-Wochen-Zyklus: Tagesliste mit allen Übungen, Menge und Anweisung, zum Abhaken.">
+<meta name="theme-color" content="#0B0C0E">
+<meta name="color-scheme" content="dark">
+<!-- iOS PWA -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Zyklus">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header id="hdr">
+  <div class="hdr-top">
+    <div id="hdr-date" class="hdr-date"></div>
+    <button id="badge-week" class="badge-week" type="button" aria-haspopup="dialog">
+      <span id="badge-week-text"></span>
+    </button>
+    <div class="hdr-right">
+      <span id="hdr-count" class="hdr-count"></span>
+      <button id="btn-basics" class="iconbtn" type="button" aria-haspopup="dialog" aria-label="Basics – Trainingsprinzipien">?</button>
+    </div>
+  </div>
+
+  <div id="strip-wrap" class="strip-wrap">
+    <div id="strip" class="strip" role="tablist" aria-label="Trainingstage des Zyklus"></div>
+  </div>
+  <div id="pager" class="pager" aria-hidden="true"><i></i><i></i></div>
+
+  <div id="dayprog" class="dayprog" aria-hidden="true"></div>
+</header>
+
+<main id="main"></main>
+
+<button id="jump-open" class="jump-open" type="button" hidden>↓ Nächste offene</button>
+
+<!-- Basics-Sheet -->
+<div id="sheet-basics" class="sheet" role="dialog" aria-modal="true" aria-label="Basics" hidden>
+  <div class="sheet-scrim" data-close="1"></div>
+  <div class="sheet-panel">
+    <div class="sheet-grip" data-close="1"><i></i></div>
+    <div class="sheet-head">
+      <h2>Basics</h2>
+      <button class="sheet-x" type="button" data-close="1" aria-label="Schließen">✕</button>
+    </div>
+    <div id="basics-body" class="sheet-body"></div>
+    <div id="basics-zones" class="zones"></div>
+  </div>
+</div>
+
+<!-- Zyklus-Sheet -->
+<div id="sheet-cycle" class="sheet" role="dialog" aria-modal="true" aria-label="Zyklus" hidden>
+  <div class="sheet-scrim" data-close="1"></div>
+  <div class="sheet-panel sheet-panel--short">
+    <div class="sheet-grip" data-close="1"><i></i></div>
+    <div class="sheet-head">
+      <h2>Zyklus</h2>
+      <button class="sheet-x" type="button" data-close="1" aria-label="Schließen">✕</button>
+    </div>
+    <div class="sheet-body">
+      <p class="cyc-q">Diese Kalenderwoche ist:</p>
+      <div class="cyc-choice">
+        <button id="cyc-w1" class="cyc-btn" type="button">Woche 1<small>Kraft</small></button>
+        <button id="cyc-w2" class="cyc-btn" type="button">Woche 2<small>Power</small></button>
+      </div>
+      <p id="cyc-hint" class="cyc-hint"></p>
+    </div>
+  </div>
+</div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
