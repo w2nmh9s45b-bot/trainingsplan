@@ -1,7 +1,9 @@
 # Zyklus – Trainingsplan
 
-Web-App für meinen Trainingsplan im 2-Wochen-Zyklus. Zeigt pro Tag alle Übungen mit
-Menge/Dauer und Anweisung, gruppiert nach Trainingsort, und lässt jede Übung einzeln abhaken.
+Web-App für meinen Trainingsplan im Wochen-Zyklus. Zeigt pro Tag alle Übungen mit
+Menge/Dauer und Anweisung, gruppiert nach Trainingsort. Der Plan ist **direkt in der
+App editierbar**, die Zykluslänge einstellbar, und ein Workout-Timer misst die
+Gesamtdauer und die Zeit pro Übung.
 
 **Live:** <https://w2nmh9s45b-bot.github.io/trainingsplan/>
 
@@ -12,60 +14,76 @@ Danach startet sie wie eine App, im Vollbild und ohne Internet.
 
 Beim Öffnen steht sofort der heutige Tag da:
 
-- **Kopfzeile** – Datum, Zykluswoche (`W1 · KRAFT` / `W2 · POWER`), Zähler `7/21`, `?` für die Basics.
-- **Wochenstreifen** – die 14 Tage des Zyklus. Farbige Punkte = Trainingsorte des Tages,
-  Strich = Ruhetag, grüner Haken = alles erledigt. Tippen wechselt den Tag, seitliches
-  Wischen über die Liste ebenso.
-- **Liste** – je Trainingsort ein Abschnitt mit Fortschrittsring. Eine Zeile antippen hakt
-  sie ab, nochmal antippen macht es rückgängig. Abgehakte Zeilen bleiben stehen.
-- **Fuß** – Übungszahl, `Basics` und `Tag zurücksetzen` (zweistufig).
+- **Kopfzeile** – Datum, Zyklus-Badge (`W1 · KRAFT`, antippen öffnet die
+  Zyklus-Einstellungen), Mini-Uhr bei laufendem Workout, Zähler `7/21`, `?` für die Basics.
+- **Wochenstreifen** – alle Tage des Zyklus (eine Seite je Woche). Farbige Punkte =
+  Trainingsorte des Tages, Strich = Ruhetag, grüner Haken = alles erledigt. Tippen
+  wechselt den Tag, seitliches Wischen über die Liste ebenso.
+- **Hero-Karte** – Fortschrittsring des Tages, Orte mit Übungszahl (Antippen springt
+  zur Sektion) und die **Workout-Uhr**: „Workout starten" antippen oder einfach die
+  erste Übung abhaken – ab da läuft die Zeit. Jede abgehakte Übung bekommt einen
+  Zeit-Chip (Abstand zum vorherigen Haken). „Tag komplett" zeigt die Gesamtdauer.
+- **Liste** – je Trainingsort eine Karte mit Fortschrittsring. Eine Zeile antippen hakt
+  sie ab (mit Partikel-Animation), nochmal antippen macht es rückgängig. Beim Scrollen
+  fliegen die nächsten Zeilen von links ein.
+- **Fuß** – `Basics`, `Übungen` (Übungsdatenbank), `Bearbeiten` und
+  `Tag zurücksetzen` (zweistufig).
 
-Der Fortschritt wird pro Kalendertag im Browser gespeichert (`localStorage`). Die Tagesgrenze
-liegt bei **04:00**, damit Training über Mitternacht noch zum selben Tag zählt. Ältere Tage
-bleiben 8 Wochen abrufbar und nachträglich korrigierbar.
+## Plan bearbeiten (in der App)
 
-## Zykluszuordnung
+`Bearbeiten` im Fuß antippen:
 
-Woche 1 beginnt am **Montag, 01.06.2026**; ab da laufen die Wochen durch. Stimmt das nicht
-mit dem echten Trainingsstand überein, das Wochen-Badge in der Kopfzeile antippen und
-umschalten – die Einstellung bleibt gespeichert. Das ist die einzige Einstellung der App.
+- **Übung entfernen:** rotes Minus rechts an der Zeile. Entfernte Übungen werden nie
+  gelöscht, sondern wandern in die **Übungsdatenbank**.
+- **Übung hinzufügen:** „+ Übung hinzufügen" unter einer Sektion → aus der Datenbank
+  wählen (Suche) oder „Neue Übung anlegen" (Name, Menge/Dauer, Anweisung).
+- **Trainingsort hinzufügen:** erscheint, wenn Gym/Homegym/Home an dem Tag noch fehlt –
+  auch an bisherigen Ruhetagen.
+- `Fertig` beendet den Modus.
+
+Die **Übungsdatenbank** (`Übungen` im Fuß) sammelt alles, was je im Plan stand, mit
+Suche und Verwendungszähler. Endgültig löschen: ✕ zweimal antippen.
+
+## Zyklus einstellen
+
+Zyklus-Badge in der Kopfzeile antippen:
+
+- **Zykluslänge** 1–6 Wochen (neue Wochen starten leer und werden über „Bearbeiten"
+  gefüllt; beim Verkürzen bleiben alle Übungen in der Datenbank erhalten).
+- **„Diese Kalenderwoche ist …"** ordnet den Zyklus dem echten Trainingsstand zu.
+- **„Plan auf Startplan zurücksetzen"** (zweistufig) stellt den Excel-Stand aus
+  `data.js` wieder her (Haken-Historie bleibt).
+
+Woche 1 beginnt am **Montag, 01.06.2026**; ab da laufen die Wochen durch.
+
+## Speicherung
+
+Alles liegt im `localStorage` des Browsers unter dem Schlüssel `zyklus.v2`:
+der komplette Plan, die Übungsdatenbank und pro Kalendertag (`YYYY-MM-DD`,
+Tagesgrenze **04:00**) Haken samt Zeitstempeln, Workout-Start und -Stopp.
+Ältere Tage bleiben 8 Wochen abrufbar. Ein Altbestand der ersten App-Version
+(`zyklus.v1`) wird beim ersten Start automatisch übernommen.
 
 ## Dateien
 
 | Datei | Zweck |
 |---|---|
-| `index.html` | Gerüst, PWA-Metadaten |
-| `styles.css` | gesamtes Layout, Dark-Mode fest |
-| `app.js` | Darstellung, Abhaken, Speicherung, Zyklusrechnung |
-| `data.js` | die Plandaten (`window.PLAN`) – **generiert, nicht von Hand ändern** |
+| `index.html` | Gerüst, PWA-Metadaten, Sheets (Basics, Zyklus, Übung hinzufügen, Datenbank) |
+| `styles.css` | gesamtes Layout, Dark-Mode fest, Animationen (Reveal, Burst, Konfetti) |
+| `app.js` | Darstellung, Abhaken, Timer, Plan-Editor, Datenbank, Speicherung, Zyklusrechnung |
+| `data.js` | der **Startplan** (`window.PLAN`) aus der Excel – nur noch Seed beim ersten Start |
 | `sw.js` | Service Worker für den Offline-Betrieb |
 | `manifest.webmanifest`, `icons/` | Homescreen-Icon und App-Metadaten |
 
-## Plan ändern
+## Plan per Excel ändern (optional)
 
-`data.js` wird aus der Excel `Privat/Trainingsplan <Datum>.xlsx` erzeugt. Nach einer
-Planänderung die Datei neu generieren (Struktur der Excel: Wochenblöcke ab Zeile 1 bzw. 36,
-je Tag drei Kategorieblöcke aus Name / Menge / Anweisung) und in `data.js` als
-`window.PLAN = { … }` ablegen. Format:
+`data.js` wird aus `Privat/Trainingsplan <Datum>.xlsx` erzeugt und wirkt nur als
+Startplan: Bestandsinstallationen behalten ihren gespeicherten Plan, bis in der App
+„Plan auf Startplan zurücksetzen" gewählt wird. Format wie gehabt
+(`window.PLAN = { weeks: […], basics: {…} }`).
 
-```js
-window.PLAN = {
-  weeks: [{ week: 1, label: "Woche 1 (…)", days: [
-    { day: "Montag",
-      locations: [{ location: "Gym", items: [{ name: "…", qty: "3 x 8 reps", note: "schwer" }] }],
-      off: [] }
-  ]}],
-  basics: { goals: [], rows: [{ label: "Pause", values: [] }], zones: [{ zone: "Zone 1", desc: "…" }] }
-};
-```
-
-Ein Trainingsort ohne Einträge erscheint gar nicht – dadurch gibt es nie einen Knopf für
-einen Ort, an dem an dem Tag nicht trainiert wird. `off` listet Orte, die in der Quelle
-ausdrücklich als trainingsfrei markiert sind; ein Tag ganz ohne `locations` und ohne `off`
-wird als Lücke im Plan gekennzeichnet.
-
-**Wichtig nach jeder Änderung:** in `sw.js` die Zeile `var CACHE = "zyklus-v2"` hochzählen,
-sonst liefert der Service Worker auf dem iPhone weiter die alte Version.
+**Wichtig nach jeder Änderung:** in `sw.js` die Zeile `var CACHE = "zyklus-v3"`
+hochzählen, sonst liefert der Service Worker auf dem iPhone weiter die alte Version.
 
 ## Deploy
 

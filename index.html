@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Zyklus – Trainingsplan</title>
-<meta name="description" content="Trainingsplan im 2-Wochen-Zyklus: Tagesliste mit allen Übungen, Menge und Anweisung, zum Abhaken.">
-<meta name="theme-color" content="#0B0C0E">
+<meta name="description" content="Editierbarer Trainingsplan im Wochen-Zyklus: Übungen abhaken, Plan anpassen, Workout-Zeit tracken.">
+<meta name="theme-color" content="#06070B">
 <meta name="color-scheme" content="dark">
 <!-- iOS PWA -->
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -26,6 +26,7 @@
       <span id="badge-week-text"></span>
     </button>
     <div class="hdr-right">
+      <span id="hdr-timer" class="hdr-timer" hidden></span>
       <span id="hdr-count" class="hdr-count"></span>
       <button id="btn-basics" class="iconbtn" type="button" aria-haspopup="dialog" aria-label="Basics – Trainingsprinzipien">?</button>
     </div>
@@ -34,7 +35,7 @@
   <div id="strip-wrap" class="strip-wrap">
     <div id="strip" class="strip" role="tablist" aria-label="Trainingstage des Zyklus"></div>
   </div>
-  <div id="pager" class="pager" aria-hidden="true"><i></i><i></i></div>
+  <div id="pager" class="pager" aria-hidden="true"></div>
 
   <div id="dayprog" class="dayprog" aria-hidden="true"></div>
 </header>
@@ -67,12 +68,60 @@
       <button class="sheet-x" type="button" data-close="1" aria-label="Schließen">✕</button>
     </div>
     <div class="sheet-body">
-      <p class="cyc-q">Diese Kalenderwoche ist:</p>
-      <div class="cyc-choice">
-        <button id="cyc-w1" class="cyc-btn" type="button">Woche 1<small>Kraft</small></button>
-        <button id="cyc-w2" class="cyc-btn" type="button">Woche 2<small>Power</small></button>
+      <p class="cyc-q">Zykluslänge:</p>
+      <div class="cyc-len">
+        <button id="cyc-minus" class="cyc-step" type="button" aria-label="Eine Woche weniger">−</button>
+        <b id="cyc-len-val">2 Wochen</b>
+        <button id="cyc-plus" class="cyc-step" type="button" aria-label="Eine Woche mehr">+</button>
       </div>
+      <p class="cyc-q">Diese Kalenderwoche ist:</p>
+      <div id="cyc-weeks" class="cyc-choice"></div>
       <p id="cyc-hint" class="cyc-hint"></p>
+      <button id="cyc-reset" class="cyc-reset" type="button">Plan auf Startplan zurücksetzen</button>
+    </div>
+  </div>
+</div>
+
+<!-- Übung-hinzufügen-Sheet -->
+<div id="sheet-add" class="sheet" role="dialog" aria-modal="true" aria-label="Übung hinzufügen" hidden>
+  <div class="sheet-scrim" data-close="1"></div>
+  <div class="sheet-panel">
+    <div class="sheet-grip" data-close="1"><i></i></div>
+    <div class="sheet-head">
+      <h2 id="add-title">Übung hinzufügen</h2>
+      <button class="sheet-x" type="button" data-close="1" aria-label="Schließen">✕</button>
+    </div>
+    <div class="sheet-body">
+      <input id="add-search" class="field" type="search" placeholder="Datenbank durchsuchen …"
+             autocomplete="off" autocorrect="off" autocapitalize="off">
+      <button id="add-new-toggle" class="new-toggle" type="button">＋ Neue Übung anlegen</button>
+      <div id="add-form" class="new-form" hidden>
+        <input id="add-name" class="field" type="text" placeholder="Name der Übung" autocomplete="off">
+        <input id="add-qty" class="field" type="text" placeholder="Menge / Dauer (z. B. 3 x 8 reps)" autocomplete="off">
+        <input id="add-note" class="field" type="text" placeholder="Anweisung (z. B. schwer/ kontrolliert)" autocomplete="off">
+        <button id="add-save" class="save-btn" type="button">In den Plan übernehmen</button>
+      </div>
+      <div id="add-list" class="db-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Übungsdatenbank-Sheet -->
+<div id="sheet-db" class="sheet" role="dialog" aria-modal="true" aria-label="Übungsdatenbank" hidden>
+  <div class="sheet-scrim" data-close="1"></div>
+  <div class="sheet-panel">
+    <div class="sheet-grip" data-close="1"><i></i></div>
+    <div class="sheet-head">
+      <h2>Übungsdatenbank</h2>
+      <button class="sheet-x" type="button" data-close="1" aria-label="Schließen">✕</button>
+    </div>
+    <div class="sheet-body">
+      <p id="db-count" class="db-count"></p>
+      <input id="db-search" class="field" type="search" placeholder="Übung suchen …"
+             autocomplete="off" autocorrect="off" autocapitalize="off">
+      <div id="db-list" class="db-list"></div>
+      <p class="db-hint">Aus dem Plan entfernte Übungen landen automatisch hier. Zurück in den
+        Plan: „Bearbeiten“ → „Übung hinzufügen“ am gewünschten Tag.</p>
     </div>
   </div>
 </div>
