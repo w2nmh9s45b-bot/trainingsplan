@@ -4,7 +4,7 @@
    geänderten Trainingsplan überhaupt zu sehen – bei reinem cache-first bliebe
    der alte Plan hängen, bis man die Website-Daten löscht. Icons ändern sich nie
    und werden weiter aus dem Cache bedient. */
-var CACHE = "zyklus-v3";
+var CACHE = "zyklus-v4";
 var ASSETS = [
   "./",
   "./index.html",

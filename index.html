@@ -106,6 +106,29 @@
   </div>
 </div>
 
+<!-- Kalender-Sheet -->
+<div id="sheet-cal" class="sheet" role="dialog" aria-modal="true" aria-label="Trainingskalender" hidden>
+  <div class="sheet-scrim" data-close="1"></div>
+  <div class="sheet-panel">
+    <div class="sheet-grip" data-close="1"><i></i></div>
+    <div class="sheet-head">
+      <h2>Kalender</h2>
+      <button class="sheet-x" type="button" data-close="1" aria-label="Schließen">✕</button>
+    </div>
+    <div class="sheet-body">
+      <div class="cal-nav">
+        <button id="cal-prev" class="cal-step" type="button" aria-label="Voriger Monat">‹</button>
+        <b id="cal-title"></b>
+        <button id="cal-next" class="cal-step" type="button" aria-label="Nächster Monat">›</button>
+      </div>
+      <div id="cal-dow" class="cal-dow" aria-hidden="true"></div>
+      <div id="cal-grid" class="cal-grid"></div>
+      <div id="cal-stats" class="cal-stats"></div>
+      <div id="cal-detail" class="cal-detail"></div>
+    </div>
+  </div>
+</div>
+
 <!-- Übungsdatenbank-Sheet -->
 <div id="sheet-db" class="sheet" role="dialog" aria-modal="true" aria-label="Übungsdatenbank" hidden>
   <div class="sheet-scrim" data-close="1"></div>

@@ -22,12 +22,31 @@ Beim Öffnen steht sofort der heutige Tag da:
 - **Hero-Karte** – Fortschrittsring des Tages, Orte mit Übungszahl (Antippen springt
   zur Sektion) und die **Workout-Uhr**: „Workout starten" antippen oder einfach die
   erste Übung abhaken – ab da läuft die Zeit. Jede abgehakte Übung bekommt einen
-  Zeit-Chip (Abstand zum vorherigen Haken). „Tag komplett" zeigt die Gesamtdauer.
+  Zeit-Chip (Abstand zum vorherigen Haken, Pausen abgezogen). „Tag komplett" zeigt
+  die Gesamtdauer. Dazu drei Knöpfe: **Pause** hält die Uhr an (Chip und Kopf-Uhr
+  werden gelb), **▶ Fortsetzen** lässt sie weiterlaufen, **Beenden** schließt das
+  Workout vorzeitig ab, wenn nicht alle Übungen drankommen – die Dauer steht dann
+  fest, der Tag bleibt wie er ist. Auch nach „Beenden" geht **Fortsetzen** wieder:
+  Die Zeit dazwischen zählt als Pause, ebenso wenn man einfach die nächste Übung
+  abhakt.
 - **Liste** – je Trainingsort eine Karte mit Fortschrittsring. Eine Zeile antippen hakt
   sie ab (mit Partikel-Animation), nochmal antippen macht es rückgängig. Beim Scrollen
   fliegen die nächsten Zeilen von links ein.
-- **Fuß** – `Basics`, `Übungen` (Übungsdatenbank), `Bearbeiten` und
-  `Tag zurücksetzen` (zweistufig).
+- **Fuß** – `Basics`, `Übungen` (Übungsdatenbank), `Kalender` (Trainingshistorie),
+  `Bearbeiten` und `Tag zurücksetzen` (zweistufig).
+
+## Kalender
+
+`Kalender` im Fuß öffnet die Trainingshistorie als Monatsansicht:
+
+- **Monatsraster** – jeder Trainingstag trägt einen Fortschrittsring (blau = teilweise,
+  grün = alle Übungen), heute ist umrandet; ‹ › blättert durch die Monate. Darunter
+  die Monatsbilanz (Anzahl Trainings, Gesamtzeit).
+- **Tagesdetail** – Tag antippen: Status (Komplett / Beendet / Teilweise), Übungszahl
+  und Workout-Dauer, dann alle abgehakten Übungen in Abhak-Reihenfolge mit der Zeit
+  pro Übung; nicht gemachte Übungen des Plan-Tags stehen ausgegraut als „offen" dabei.
+- Die Zuordnung alter Tage zum Zyklus rechnet vom Anker-Montag aus zurück – wird der
+  Zyklus später verschoben, ist die Soll-Liste alter Tage best effort.
 
 ## Plan bearbeiten (in der App)
 
@@ -60,9 +79,10 @@ Woche 1 beginnt am **Montag, 01.06.2026**; ab da laufen die Wochen durch.
 
 Alles liegt im `localStorage` des Browsers unter dem Schlüssel `zyklus.v2`:
 der komplette Plan, die Übungsdatenbank und pro Kalendertag (`YYYY-MM-DD`,
-Tagesgrenze **04:00**) Haken samt Zeitstempeln, Workout-Start und -Stopp.
-Ältere Tage bleiben 8 Wochen abrufbar. Ein Altbestand der ersten App-Version
-(`zyklus.v1`) wird beim ersten Start automatisch übernommen.
+Tagesgrenze **04:00**) Haken samt Zeitstempeln, Workout-Start und -Stopp sowie
+die Pausen (`pauses` als Liste von Beginn/Ende-Paaren; Ende 0 = läuft noch).
+Ältere Tage bleiben **400 Tage** für den Kalender abrufbar. Ein Altbestand der
+ersten App-Version (`zyklus.v1`) wird beim ersten Start automatisch übernommen.
 
 ## Dateien
 
@@ -82,7 +102,7 @@ Startplan: Bestandsinstallationen behalten ihren gespeicherten Plan, bis in der 
 „Plan auf Startplan zurücksetzen" gewählt wird. Format wie gehabt
 (`window.PLAN = { weeks: […], basics: {…} }`).
 
-**Wichtig nach jeder Änderung:** in `sw.js` die Zeile `var CACHE = "zyklus-v3"`
+**Wichtig nach jeder Änderung:** in `sw.js` die Zeile `var CACHE = "zyklus-v4"`
 hochzählen, sonst liefert der Service Worker auf dem iPhone weiter die alte Version.
 
 ## Deploy

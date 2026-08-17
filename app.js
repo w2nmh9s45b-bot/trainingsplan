@@ -15,7 +15,7 @@
   var ANCHOR = Date.UTC(2026, 5, 1);          // 2026-06-01, ein Montag
   var DAY_MS = 86400000;
   var DAY_ROLLOVER_H = 4;                     // Training nach Mitternacht zählt zum Vortag
-  var KEEP_DAYS = 56;                         // acht Wochen Historie
+  var KEEP_DAYS = 400;                        // gut ein Jahr Historie für den Kalender
   var MAX_WEEKS = 6;
 
   var LOCATIONS = ["Gym", "Homegym", "Home"];
@@ -65,7 +65,15 @@
     sheetDb: document.getElementById("sheet-db"),
     dbSearch: document.getElementById("db-search"),
     dbList: document.getElementById("db-list"),
-    dbCount: document.getElementById("db-count")
+    dbCount: document.getElementById("db-count"),
+    sheetCal: document.getElementById("sheet-cal"),
+    calTitle: document.getElementById("cal-title"),
+    calPrev: document.getElementById("cal-prev"),
+    calNext: document.getElementById("cal-next"),
+    calDow: document.getElementById("cal-dow"),
+    calGrid: document.getElementById("cal-grid"),
+    calStats: document.getElementById("cal-stats"),
+    calDetail: document.getElementById("cal-detail")
   };
 
   var state = null;      // { v:2, shift, days:{key:{start,end,checks:{uid:ts}}}, plan:{weeks:[…]}, db:[…] }
@@ -277,6 +285,11 @@
       var d = s.days[k];
       if (!d || typeof d !== "object" || Array.isArray(d)) { delete s.days[k]; return; }
       if (!d.checks || typeof d.checks !== "object") d.checks = {};
+      if (!Array.isArray(d.pauses)) d.pauses = [];
+      d.pauses = d.pauses.filter(function (p) {
+        return Array.isArray(p) && typeof p[0] === "number" && p[0] > 0 &&
+               typeof p[1] === "number";
+      });
     });
     pruneDays(s);
     return s;
@@ -406,9 +419,77 @@
   function sess(key) { return state.days[key] || null; }
 
   function sessWrite(key) {
-    if (!state.days[key]) state.days[key] = { start: 0, end: 0, checks: {} };
+    if (!state.days[key]) state.days[key] = { start: 0, end: 0, checks: {}, pauses: [] };
     if (!state.days[key].checks) state.days[key].checks = {};
+    if (!Array.isArray(state.days[key].pauses)) state.days[key].pauses = [];
     return state.days[key];
+  }
+
+  /* ── Pausen: [[Beginn, Ende], …]; Ende 0 = Pause läuft noch ── */
+
+  function pausesOf(d) {
+    if (!Array.isArray(d.pauses)) d.pauses = [];
+    return d.pauses;
+  }
+
+  function isPaused(d) {
+    if (!d || !d.start || d.end) return false;
+    var p = d.pauses;
+    return !!(p && p.length && p[p.length - 1][1] === 0);
+  }
+
+  /* Pausenzeit, die in das Fenster [a, b] fällt. Eine noch offene Pause
+     zählt bis b – so steht die Uhr während der Pause still. */
+  function pausedBetween(d, a, b) {
+    var p = d && d.pauses;
+    if (!p || !p.length || b <= a) return 0;
+    var sum = 0;
+    for (var i = 0; i < p.length; i++) {
+      var lo = Math.max(a, p[i][0]);
+      var hi = Math.min(b, p[i][1] || b);
+      if (hi > lo) sum += hi - lo;
+    }
+    return sum;
+  }
+
+  /* Uhr zurück in den Lauf-Zustand: offene Pause schließen und ein gesetztes
+     Ende aufheben. Die Zeit zwischen „Beenden" und dem Weitermachen zählt als
+     Pause, damit die Workout-Dauer ehrlich bleibt. */
+  function reopenClock(d, now) {
+    var p = pausesOf(d);
+    if (p.length && p[p.length - 1][1] === 0) p[p.length - 1][1] = now;
+    if (d.end) {
+      if (now > d.end) p.push([d.end, now]);
+      d.end = 0;
+    }
+  }
+
+  function pauseWorkout(key) {
+    var d = sessWrite(key);
+    if (!d.start || d.end || isPaused(d)) return;
+    pausesOf(d).push([Date.now(), 0]);
+    save();
+  }
+
+  function resumeWorkout(key) {
+    var d = sessWrite(key);
+    if (!d.start) return;
+    reopenClock(d, Date.now());
+    save();
+  }
+
+  /* Workout vorzeitig beenden: Zeit steht, der Tag bleibt wie er ist.
+     Läuft gerade eine Pause, endet das Workout an deren Beginn. */
+  function finishWorkout(key) {
+    var d = sessWrite(key);
+    if (!d.start || d.end) return;
+    if (isPaused(d)) {
+      d.end = d.pauses[d.pauses.length - 1][0];
+      d.pauses.pop();
+    } else {
+      d.end = Date.now();
+    }
+    save();
   }
 
   function sessClean(key) {
@@ -429,9 +510,10 @@
          laufenden Trainingstag – nachgetragene alte Tage bleiben ohne Zeit. */
       if (!d.start && key === todayRef.key) d.start = ts;
       d.checks[uid] = key === todayRef.key ? ts : 0;
-      /* Nur heute: weiter trainiert → Uhr läuft wieder. Beim Nachtragen an
-         vergangenen Tagen bleibt deren gespeicherte Stoppzeit unangetastet. */
-      if (d.end && key === todayRef.key) d.end = 0;
+      /* Nur heute: weiter trainiert → Uhr läuft wieder (Pause schließen,
+         „Beenden" aufheben). Beim Nachtragen an vergangenen Tagen bleibt
+         deren gespeicherte Stoppzeit unangetastet. */
+      if (key === todayRef.key) reopenClock(d, ts);
     } else {
       delete d.checks[uid];
     }
@@ -461,7 +543,8 @@
     return arr;
   }
 
-  /* Zeit pro Übung = Abstand zum vorherigen Haken (bzw. zum Start). */
+  /* Zeit pro Übung = Abstand zum vorherigen Haken (bzw. zum Start),
+     abzüglich der Pausen, die dazwischen lagen. */
   function splitMap(key) {
     var d = sess(key);
     var map = Object.create(null);
@@ -469,7 +552,9 @@
     var arr = checksSorted(key);
     var prev = d.start > 0 ? d.start : 0;
     arr.forEach(function (c) {
-      if (prev > 0 && c.ts >= prev) map[c.uid] = c.ts - prev;
+      if (prev > 0 && c.ts >= prev) {
+        map[c.uid] = Math.max(0, c.ts - prev - pausedBetween(d, prev, c.ts));
+      }
       prev = c.ts;
     });
     return map;
@@ -478,14 +563,21 @@
   function workoutDuration(key, allDone) {
     var d = sess(key);
     if (!d || !d.start) return null;
-    if (d.end) return Math.max(0, d.end - d.start);
-    var arr = checksSorted(key);
-    if (allDone) return arr.length ? Math.max(0, arr[arr.length - 1].ts - d.start) : 0;
-    if (key !== todayRef.key) {
+    var arr, endpoint;
+    if (d.end) {
+      endpoint = d.end;
+    } else if (allDone) {
+      arr = checksSorted(key);
+      endpoint = arr.length ? arr[arr.length - 1].ts : d.start;
+    } else if (key !== todayRef.key) {
       /* Vergangener Tag ohne sauberes Ende: bis zum letzten Haken zählen. */
-      return arr.length ? Math.max(0, arr[arr.length - 1].ts - d.start) : null;
+      arr = checksSorted(key);
+      if (!arr.length) return null;
+      endpoint = arr[arr.length - 1].ts;
+    } else {
+      endpoint = Date.now();
     }
-    return Math.max(0, Date.now() - d.start);
+    return Math.max(0, endpoint - d.start - pausedBetween(d, d.start, endpoint));
   }
 
   function fmtDur(ms) {
@@ -908,26 +1000,42 @@
       var dur = workoutDuration(key, allDone);
       /* Vergangene Tage ohne verwertbare Dauer: keine Uhr anzeigen. */
       if (dur == null && !isToday()) return line;
-      var running = !allDone && !d.end && isToday();
-      var chip = h("div", "tmr-chip" + (running ? " run" : " fin"));
+      var paused = isPaused(d);
+      var ended = !!d.end;
+      var running = !allDone && !ended && !paused && isToday();
+      var chip = h("div", "tmr-chip" +
+        (running ? " run" : (paused && isToday() && !allDone ? " paused" : " fin")));
       chip.appendChild(h("i", "tmr-dot"));
       var val = h("b", "tmr-val", dur == null ? "–" : fmtDur(dur));
       val.id = "tmr-val";
       chip.appendChild(val);
       chip.appendChild(h("span", "tmr-lbl",
-        allDone ? "Workout-Dauer" : (d.end ? "gestoppt" : (running ? "läuft" : "Workout"))));
+        allDone ? "Workout-Dauer"
+                : (ended ? "beendet"
+                : (paused ? "Pause" : (running ? "läuft" : "Workout")))));
       line.appendChild(chip);
 
-      if (!allDone && !d.end && isToday()) {
-        var stop = h("button", "tmr-stop", "Stopp");
-        stop.type = "button";
-        stop.addEventListener("click", function () {
-          sessWrite(key).end = Date.now();
-          save();
+      function tmrBtn(cls, label, fn) {
+        var b = h("button", cls, label);
+        b.type = "button";
+        b.addEventListener("click", function () {
+          fn(key);
           rebuildTimerLine();
           updateTimer();
         });
-        line.appendChild(stop);
+        line.appendChild(b);
+      }
+
+      if (isToday() && !allDone) {
+        if (running) {
+          tmrBtn("tmr-stop", "Pause", pauseWorkout);
+          tmrBtn("tmr-finish", "Beenden", finishWorkout);
+        } else if (paused) {
+          tmrBtn("tmr-resume", "▶ Fortsetzen", resumeWorkout);
+          tmrBtn("tmr-finish", "Beenden", finishWorkout);
+        } else if (ended) {
+          tmrBtn("tmr-resume", "▶ Fortsetzen", resumeWorkout);
+        }
       }
     }
     return line;
@@ -1097,6 +1205,11 @@
     b2.addEventListener("click", openDb);
     acts.appendChild(b2);
 
+    var b25 = h("button", null, "Kalender");
+    b25.type = "button";
+    b25.addEventListener("click", openCal);
+    acts.appendChild(b25);
+
     var b3 = h("button", editing ? "primary" : null, editing ? "Fertig" : "Bearbeiten");
     b3.type = "button";
     b3.addEventListener("click", function () {
@@ -1105,7 +1218,7 @@
     });
     acts.appendChild(b3);
 
-    var b4 = h("button", null, "Tag zurücksetzen");
+    var b4 = h("button", "wide", "Tag zurücksetzen");
     b4.type = "button";
     armButton(b4, "Tag zurücksetzen", "Wirklich zurücksetzen?", function () {
       delete state.days[viewKey()];
@@ -1334,7 +1447,9 @@
 
   var tickTimer = null;
 
-  function timerRunning() {
+  /* Uhr „aktiv" = heute gestartet, nicht beendet, Tag nicht fertig.
+     Aktiv + pausiert → Uhr sichtbar, aber sie steht. */
+  function timerActive() {
     var d = sess(todayRef.key);
     if (!d || !d.start || d.end) return false;
     var day = getDay(todayRef.week, todayRef.dayIndex);
@@ -1344,24 +1459,27 @@
   }
 
   function updateTimer() {
-    var running = timerRunning();
-
-    /* Kopfzeile: Mini-Uhr, sobald heute ein Workout läuft. */
     var d = sess(todayRef.key);
-    if (running && d) {
-      el.hdrTimer.textContent = fmtDur(Date.now() - d.start);
+    var active = timerActive();
+    var running = active && !isPaused(d);
+
+    /* Kopfzeile: Mini-Uhr, sobald heute ein Workout läuft (steht bei Pause). */
+    if (active && d) {
+      el.hdrTimer.textContent = fmtDur(workoutDuration(todayRef.key, false) || 0);
+      el.hdrTimer.classList.toggle("paused", !running);
       el.hdrTimer.hidden = false;
     } else {
       el.hdrTimer.hidden = true;
+      el.hdrTimer.classList.remove("paused");
     }
 
     /* Hero-Uhr des angezeigten Tages. */
     var val = document.getElementById("tmr-val");
-    if (val && isToday() && d && d.start && !d.end) {
+    if (val && isToday() && active) {
       var day = getDay(view.week, view.dayIndex);
       var total = dayTotal(day);
       var allDone = total > 0 && countDone(view.week, view.dayIndex) === total;
-      if (!allDone) val.textContent = fmtDur(Date.now() - d.start);
+      if (!allDone) val.textContent = fmtDur(workoutDuration(todayRef.key, false) || 0);
     }
 
     if (running && !tickTimer) {
@@ -1534,6 +1652,227 @@
     el.dbCount.textContent = state.db.length + " Übung" + (state.db.length === 1 ? "" : "en") +
       " · alles, was je im Plan stand";
     if (!shown) el.dbList.appendChild(h("p", "db-empty", "Keine Übung gefunden."));
+  }
+
+  /* ───────────────────────── Kalender ───────────────────────── */
+
+  var calMonth = null;    // Date: 1. des angezeigten Monats
+  var calSel = null;      // ausgewählter Tag als "YYYY-MM-DD"
+
+  function calKey(y, m, day) { return y + "-" + pad2(m + 1) + "-" + pad2(day); }
+
+  function parseKey(key) {
+    var p = key.split("-");
+    return new Date(+p[0], +p[1] - 1, +p[2], 12, 0, 0, 0);
+  }
+
+  /* Zyklus-Tag zu einem Kalendertag (Rückrechnung über den Anker). Wurde der
+     Zyklus zwischenzeitlich verschoben, ist das für alte Tage best effort. */
+  function planDayFor(date) {
+    var w = weekOf(date);
+    var di = (date.getDay() + 6) % 7;
+    return { week: w, dayIndex: di, day: getDay(w, di) };
+  }
+
+  /* Alle Plan-Übungen nach Uid, um Haken vergangener Tage Name und Ort
+     zuzuordnen – auch wenn die Übung heute an anderer Stelle steht. */
+  function uidIndex() {
+    var map = Object.create(null);
+    state.plan.weeks.forEach(function (w) {
+      w.days.forEach(function (d) {
+        d.locations.forEach(function (L) {
+          L.items.forEach(function (it) {
+            if (!map[it.uid]) map[it.uid] = { name: it.name, qty: it.qty, loc: L.location };
+          });
+        });
+      });
+    });
+    return map;
+  }
+
+  /* Ort aus einer Alt-Uid („2|4|Homegym|3|ab12") lesen, falls die Übung
+     nicht mehr im Plan steht. */
+  function uidLoc(uid) {
+    var p = String(uid).split("|");
+    return p.length === 5 && LOC_LABEL[p[2]] ? p[2] : null;
+  }
+
+  /* Tages-Zusammenfassung: Haken, Plansoll, Status, Dauer. null = kein Eintrag. */
+  function daySummary(key) {
+    var d = state.days[key];
+    if (!d || (!d.start && !Object.keys(d.checks).length)) return null;
+    var pd = planDayFor(parseKey(key));
+    var total = dayTotal(pd.day);
+    var done = 0;
+    pd.day.locations.forEach(function (L) {
+      L.items.forEach(function (it) { if (it.uid in d.checks) done++; });
+    });
+    var complete = total > 0 && done === total;
+    return {
+      d: d, planDay: pd, total: total, done: done,
+      checks: Object.keys(d.checks).length,
+      complete: complete,
+      dur: workoutDuration(key, complete)
+    };
+  }
+
+  function openCal() {
+    var ref = refDate();
+    calMonth = new Date(ref.getFullYear(), ref.getMonth(), 1);
+    calSel = todayRef.key;
+    if (!el.calDow.childElementCount) {
+      DAY_SHORT.forEach(function (s) { el.calDow.appendChild(h("span", null, s)); });
+    }
+    buildCalendar();
+    openSheet(el.sheetCal);
+  }
+
+  function shiftCalMonth(delta) {
+    calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + delta, 1);
+    buildCalendar();
+  }
+
+  function buildCalendar() {
+    var y = calMonth.getFullYear(), m = calMonth.getMonth();
+    el.calTitle.textContent = MONTHS[m] + " " + y;
+
+    el.calGrid.textContent = "";
+    var lead = (new Date(y, m, 1).getDay() + 6) % 7;
+    var dim = new Date(y, m + 1, 0).getDate();
+    var trainings = 0, totalMs = 0;
+
+    for (var i = 0; i < lead; i++) el.calGrid.appendChild(h("span", "cal-pad"));
+
+    for (var day = 1; day <= dim; day++) {
+      (function (day) {
+        var key = calKey(y, m, day);
+        var s = daySummary(key);
+        var cell = h("button", "cal-cell");
+        cell.type = "button";
+        if (key > todayRef.key) cell.classList.add("future");
+        if (key === todayRef.key) cell.classList.add("is-today");
+        if (key === calSel) cell.classList.add("is-sel");
+
+        var aria = day + ". " + MONTHS[m];
+        if (s) {
+          cell.classList.add("trained");
+          var pct = s.total ? Math.min(1, s.done / s.total) : 1;
+          cell.appendChild(svgRing(pct, "var(--cal-acc)"));
+          trainings++;
+          /* Heute zählt zur Monatssumme erst, wenn das Workout beendet oder
+             der Tag komplett ist – sonst wüchse die Summe im Sekundentakt. */
+          if (s.dur != null && s.dur > 0 &&
+              (key !== todayRef.key || s.complete || s.d.end)) totalMs += s.dur;
+          aria += ", " + s.checks + " Übungen" +
+            (s.complete ? ", komplett" : "") +
+            (s.dur != null && s.dur > 0 ? ", " + fmtDur(s.dur) : "");
+        }
+        cell.setAttribute("aria-label", aria);
+        cell.appendChild(h("b", null, String(day)));
+        cell.addEventListener("click", function () {
+          calSel = key;
+          var old = el.calGrid.querySelector(".is-sel");
+          if (old) old.classList.remove("is-sel");
+          cell.classList.add("is-sel");
+          buildCalDetail();
+        });
+        el.calGrid.appendChild(cell);
+      })(day);
+    }
+
+    el.calStats.textContent = "";
+    if (trainings) {
+      var st1 = h("span", "cal-stat");
+      st1.appendChild(h("b", null, String(trainings)));
+      st1.appendChild(document.createTextNode(" Training" + (trainings === 1 ? "" : "s")));
+      el.calStats.appendChild(st1);
+      if (totalMs > 0) {
+        var st2 = h("span", "cal-stat");
+        st2.appendChild(h("b", null, fmtDur(totalMs)));
+        st2.appendChild(document.createTextNode(" gesamt"));
+        el.calStats.appendChild(st2);
+      }
+    } else {
+      el.calStats.appendChild(h("span", "cal-stat dim", "Kein Training in diesem Monat"));
+    }
+
+    buildCalDetail();
+  }
+
+  function buildCalDetail() {
+    var box = el.calDetail;
+    box.textContent = "";
+    if (!calSel) return;
+
+    var date = parseKey(calSel);
+    var head = h("div", "cal-d-head");
+    head.appendChild(h("b", null,
+      DAY_NAMES[(date.getDay() + 6) % 7] + ", " + date.getDate() + ". " +
+      MONTHS[date.getMonth()] + " " + date.getFullYear()));
+
+    var s = daySummary(calSel);
+    if (!s) {
+      box.appendChild(head);
+      box.appendChild(h("p", "cal-empty",
+        calSel > todayRef.key ? "Liegt noch in der Zukunft."
+                              : "Kein Training aufgezeichnet."));
+      return;
+    }
+
+    var tag = h("span", "cal-status" +
+      (s.complete ? " ok" : (s.d.end ? " fin" : "")),
+      s.complete ? "Komplett" : (s.d.end ? "Beendet" : (calSel === todayRef.key ? "Läuft" : "Teilweise")));
+    head.appendChild(tag);
+    box.appendChild(head);
+
+    var meta = h("p", "cal-d-meta",
+      s.checks + " Übung" + (s.checks === 1 ? "" : "en") +
+      (s.total ? " von " + s.total : "") +
+      (s.dur != null && s.dur > 0 ? " · " + fmtDur(s.dur) : ""));
+    box.appendChild(meta);
+
+    var idx = uidIndex();
+    var splits = splitMap(calSel);
+    var list = h("div", "cal-d-list");
+
+    /* Abgehakte Übungen in Abhak-Reihenfolge, danach die ohne Zeitstempel. */
+    var timed = checksSorted(calSel);
+    var seen = Object.create(null);
+    timed.forEach(function (c) { seen[c.uid] = true; });
+    var untimed = Object.keys(s.d.checks).filter(function (uid) { return !seen[uid]; });
+
+    function addRow(uid, ms) {
+      var info = idx[uid];
+      var loc = info ? info.loc : uidLoc(uid);
+      var row = h("div", "cal-d-row");
+      var dot = h("i", "cdot");
+      dot.style.background = loc ? locColor(loc) : "var(--fg3)";
+      row.appendChild(dot);
+      row.appendChild(h("span", "nm", info ? info.name : "Frühere Übung"));
+      if (ms != null && ms >= 1000) row.appendChild(h("span", "tm", fmtDur(ms)));
+      list.appendChild(row);
+    }
+
+    timed.forEach(function (c) { addRow(c.uid, splits[c.uid]); });
+    untimed.forEach(function (uid) { addRow(uid, null); });
+
+    /* Nicht gemachte Übungen des Plan-Tags (nur bei Trainingstagen). */
+    if (s.total) {
+      s.planDay.day.locations.forEach(function (L) {
+        L.items.forEach(function (it) {
+          if (it.uid in s.d.checks) return;
+          var row = h("div", "cal-d-row open");
+          var dot = h("i", "cdot");
+          dot.style.background = locColor(L.location);
+          row.appendChild(dot);
+          row.appendChild(h("span", "nm", it.name));
+          row.appendChild(h("span", "tm", "offen"));
+          list.appendChild(row);
+        });
+      });
+    }
+
+    box.appendChild(list);
   }
 
   /* ───────────────────────── „Nächste offene" ───────────────────────── */
@@ -1862,6 +2201,9 @@
       buildAddList(el.addSearch.value);
     });
     el.dbSearch.addEventListener("input", function () { buildDbList(el.dbSearch.value); });
+
+    el.calPrev.addEventListener("click", function () { shiftCalMonth(-1); });
+    el.calNext.addEventListener("click", function () { shiftCalMonth(1); });
 
     attachSwipe();
     watchHdr();

@@ -259,11 +259,29 @@ body.collapsed .pager{ height:0; opacity:0; }
 .tmr-val{ font-size:16px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:.01em; }
 .tmr-lbl{ font-size:11px; font-weight:600; color:var(--fg3); letter-spacing:.05em;
   text-transform:uppercase; }
-.tmr-stop{
+.tmr-stop,.tmr-finish{
   height:34px; padding:0 13px; border-radius:17px;
   border:1px solid var(--edge); font-size:12.5px; font-weight:600; color:var(--fg2);
+  white-space:nowrap;
 }
-.tmr-stop:active{ background:rgba(255,255,255,.10); }
+.tmr-stop:active,.tmr-finish:active{ background:rgba(255,255,255,.10); }
+.tmr-finish{ border-color:rgba(255,69,58,.45); color:#FF8A80; }
+.tmr-finish:active{ background:rgba(255,69,58,.12); }
+.tmr-resume{
+  display:inline-flex; align-items:center; gap:6px;
+  height:34px; padding:0 14px; border-radius:17px;
+  background:linear-gradient(90deg,#30D158,#22D3EE);
+  color:#04140A; font-size:12.5px; font-weight:800; white-space:nowrap;
+  box-shadow:0 4px 14px rgba(48,209,88,.35);
+}
+.tmr-resume:active{ filter:brightness(1.12); }
+.tmr-chip.paused .tmr-dot{ background:#FFD60A; animation:none; }
+.tmr-chip.paused{ border-color:rgba(255,214,10,.35); }
+.tmr-chip.paused .tmr-lbl{ color:#FFD60A; }
+
+/* Kopf-Uhr im Pausen-Zustand: gelb und ohne Blinken. */
+.hdr-timer.paused{ color:#FFD60A; }
+.hdr-timer.paused::before{ background:#FFD60A; animation:none; }
 
 /* ── Sektion je Trainingsort ── */
 
@@ -462,6 +480,7 @@ body.editing .split{ display:none !important; }
   background:var(--hero-grad); border-color:transparent; color:#fff;
   box-shadow:0 4px 16px rgba(59,130,246,.35);
 }
+.dayfoot .acts button.wide{ grid-column:1 / -1; }
 
 .day-complete{
   position:relative;
@@ -629,6 +648,83 @@ body.editing .split{ display:none !important; }
 .zone b{ font-size:12.5px; font-weight:700; letter-spacing:.04em; padding:2px 7px;
   border-radius:5px; flex:0 0 auto; }
 .zone span{ font-size:13px; color:var(--fg2); white-space:pre-line; }
+
+/* Kalender-Sheet */
+:root{ --cal-acc:#3B82F6; }
+.cal-nav{ display:flex; align-items:center; justify-content:space-between; margin:2px 0 12px; }
+.cal-nav b{ font-size:16.5px; font-weight:800; letter-spacing:-.01em;
+  font-variant-numeric:tabular-nums; }
+.cal-step{
+  width:38px; height:38px; border-radius:50%; border:1px solid var(--edge);
+  color:var(--fg2); font-size:22px; line-height:1;
+  display:flex; align-items:center; justify-content:center;
+}
+.cal-step:active{ background:rgba(255,255,255,.10); }
+.cal-dow{ display:grid; grid-template-columns:repeat(7,1fr); margin-bottom:4px; }
+.cal-dow span{
+  text-align:center; font-size:10.5px; font-weight:700; letter-spacing:.06em;
+  color:var(--fg3); text-transform:uppercase;
+}
+.cal-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+.cal-cell{
+  position:relative; aspect-ratio:1; border-radius:12px;
+  display:flex; align-items:center; justify-content:center;
+  border:1px solid transparent;
+  transition:background .15s ease-out, border-color .15s ease-out;
+}
+.cal-cell b{
+  position:relative; z-index:1;
+  font-size:13.5px; font-weight:600; color:var(--fg2);
+  font-variant-numeric:tabular-nums;
+}
+.cal-cell .ring{
+  position:absolute; left:50%; top:50%; margin:-16px 0 0 -16px;
+  width:32px; height:32px;
+}
+.cal-cell.trained b{ color:var(--fg); font-weight:700; }
+.cal-cell.future b{ color:rgba(255,255,255,.25); }
+.cal-cell.is-today{ border-color:rgba(120,150,255,.45); background:rgba(80,110,255,.08); }
+.cal-cell.is-sel{ background:rgba(255,255,255,.09); border-color:var(--edge); }
+.cal-cell:active{ background:rgba(255,255,255,.13); }
+.cal-stats{
+  display:flex; gap:14px; align-items:center; flex-wrap:wrap;
+  margin:14px 2px 0; font-size:12.5px; color:var(--fg3);
+}
+.cal-stat b{ color:var(--fg); font-weight:800; font-variant-numeric:tabular-nums; }
+.cal-stat.dim{ color:var(--fg3); }
+.cal-detail{ margin-top:14px; padding-top:14px; border-top:1px solid var(--line); }
+.cal-d-head{ display:flex; align-items:center; gap:10px; }
+.cal-d-head b{ font-size:15px; font-weight:700; min-width:0; }
+.cal-status{
+  margin-left:auto; flex:0 0 auto;
+  font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase;
+  padding:3px 9px; border-radius:10px;
+  color:var(--fg2); border:1px solid var(--edge);
+}
+.cal-status.ok{ color:var(--done); border-color:rgba(48,209,88,.45);
+  background:rgba(48,209,88,.10); }
+.cal-status.fin{ color:#9DB8FF; border-color:rgba(120,150,255,.4);
+  background:rgba(80,110,255,.10); }
+.cal-d-meta{ margin:6px 0 0; font-size:12.5px; color:var(--fg3);
+  font-variant-numeric:tabular-nums; }
+.cal-empty{ margin:10px 0 4px; font-size:13px; color:var(--fg3); }
+.cal-d-list{ display:flex; flex-direction:column; gap:6px; margin-top:12px; }
+.cal-d-row{
+  display:flex; align-items:center; gap:10px;
+  padding:9px 12px; border-radius:12px;
+  background:rgba(255,255,255,.045); border:1px solid rgba(255,255,255,.08);
+}
+.cal-d-row .cdot{
+  width:8px; height:8px; border-radius:50%; flex:0 0 auto;
+  display:block;
+}
+.cal-d-row .nm{ flex:1; min-width:0; font-size:14px; overflow-wrap:anywhere; }
+.cal-d-row .tm{
+  flex:0 0 auto; font-size:12.5px; font-weight:700; color:#9DB8FF;
+  font-variant-numeric:tabular-nums;
+}
+.cal-d-row.open{ opacity:.45; }
+.cal-d-row.open .tm{ color:var(--fg3); font-weight:600; }
 
 /* Zyklus-Sheet */
 .cyc-q{ margin:4px 0 10px; font-size:14px; font-weight:600; color:var(--fg2); }
