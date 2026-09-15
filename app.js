@@ -8,7 +8,12 @@
   var SEED = window.PLAN;
   var STORE_KEY = "zyklus.v2";
   var LEGACY_KEY = "zyklus.v1";
-  var APP_VERSION = "2026-09-15.3353f6f015";   // setzt Werkzeuge/stempeln.sh – gleich VERSION in sw.js
+  /* Nebenschlüssel der Absicherung – gehören nie in eine Sicherungsdatei. */
+  var GEAENDERT_KEY = STORE_KEY + ".geaendert";          // letzte echte Änderung an Plan, Datenbank oder Haken
+  var SICHERUNG_KEY = STORE_KEY + ".sicherung";          // letzte Sicherungsdatei erstellt oder geladen
+  var SPAETER_KEY = STORE_KEY + ".sicherung-spaeter";    // Sicherungs-Erinnerung ruht bis dahin
+  var SEIT_KEY = STORE_KEY + ".seit";                    // erster Start mit Sicherungs-Erinnerung auf dem Gerät
+  var APP_VERSION = "2026-09-15.178258fdc1";   // setzt Werkzeuge/stempeln.sh – gleich VERSION in sw.js
 
   /* Montag, mit dem Woche 1 des Zyklus beginnt (Datum der Quell-Excel).
      Absolutes Ankerdatum statt KW-Parität: Jahre mit 53 ISO-Wochen würden
@@ -342,9 +347,22 @@
     });
   }
 
+  var gespeichert = null;       // zuletzt geschriebener Stand – daran erkennt save() echte Änderungen
+  var speicherFehler = false;   // letzter Schreibversuch gescheitert (Speicher voll, gesperrt, privater Modus)
+
   function save() {
-    try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
-    catch (e) { /* z.B. privater Modus – Änderungen halten dann nur bis zum Neuladen */ }
+    var json = JSON.stringify(state);
+    try {
+      localStorage.setItem(STORE_KEY, json);
+    } catch (e) {
+      /* Änderungen hielten jetzt nur bis zum Schließen – das muss man sehen, bevor
+         ein ganzes Training verloren ist (Hinweis-Pille, Zyklus-Sheet, Badge). */
+      speicherGescheitert();
+      return;
+    }
+    if (speicherFehler) speicherWiederDa();
+    if (gespeichert !== null && json !== gespeichert) zahlMerken(GEAENDERT_KEY, Date.now());
+    gespeichert = json;
   }
 
   /* ───────────────────────── Datum & Zyklus ───────────────────────── */
@@ -694,6 +712,7 @@
     var total = dayTotal(getDay(view.week, view.dayIndex));
     el.count.textContent = total ? countDone(view.week, view.dayIndex) + "/" + total : "–";
 
+    zeigeAchtung();
     renderStrip();
     renderDayProgress();
   }
@@ -800,6 +819,7 @@
     }
 
     if (installHintWanted()) el.main.appendChild(buildInstallCard());
+    else if (sicherungsKarteGewollt()) el.main.appendChild(buildSicherungsKarte());
 
     if (!total && !editing) {
       renderRest(day);
@@ -2573,24 +2593,28 @@
   var offline = {
     supported: "serviceWorker" in navigator,
     reg: null,
-    info: null,          // letzte Meldung des Workers: { version, missing, total }
+    info: null,          // letzte Meldung des Workers: { version, total, missing, fehlt, defekt, tief, geprueft }
     updateReady: false,
     lastCheck: 0,
-    hiddenAt: 0
+    hiddenAt: 0,
+    geschuetzt: null,    // navigator.storage.persist(): true/false, null = unbekannt
+    pruefe: null,        // laufender Offline-Check (Promise)
+    frisch: false        // Ergebnis eines Checks gerade eingetroffen – Zeile kurz aufleuchten lassen
   };
 
-  /* Worker nach Fassung und Vollständigkeit fragen. Der Worker vor der
-     Offline-Umstellung kennt die Frage nicht – dann nach 2 s null. */
-  function askWorker(worker) {
+  /* Worker nach Fassung und Vollständigkeit fragen; tief = jede Datei gegen ihre
+     Prüfsumme lesen. Ein Worker vor der Offline-Umstellung kennt die Frage nicht –
+     dann nach der Wartezeit null. */
+  function askWorker(worker, tief) {
     return new Promise(function (resolve) {
       if (!worker || typeof MessageChannel === "undefined") { resolve(null); return; }
       var ch = new MessageChannel();
-      var timer = setTimeout(function () { resolve(null); }, 2000);
+      var timer = setTimeout(function () { resolve(null); }, tief ? 15000 : 2000);
       ch.port1.onmessage = function (e) {
         clearTimeout(timer);
         resolve(e.data && e.data.type === "status" ? e.data : null);
       };
-      try { worker.postMessage({ type: "status" }, [ch.port2]); }
+      try { worker.postMessage({ type: "status", tief: !!tief }, [ch.port2]); }
       catch (err) { clearTimeout(timer); resolve(null); }
     });
   }
@@ -2600,6 +2624,12 @@
      Start der Seite übernommen hat oder erst danach. */
   function onWorkerStatus(info) {
     if (!info) return;
+    var alt = offline.info;
+    /* Ein schneller Stand, der nur bestätigt, was der gründliche schon wusste,
+       soll dessen Aussage („geprüft und unversehrt") nicht überschreiben. */
+    if (alt && alt.tief && !info.tief && alt.version === info.version && !alt.missing && !info.missing) {
+      info = alt;
+    }
     offline.info = info;
     if (info.version !== APP_VERSION) {
       /* Der Speicher hält eine andere, frisch geladene Fassung bereit. Anbieten
@@ -2625,6 +2655,7 @@
       }
     }
     renderAppStatus();
+    zeigeAchtung();
   }
 
   function initOffline() {
@@ -2663,7 +2694,41 @@
       }
       checkForUpdate(false);
     });
-    window.addEventListener("online", function () { checkForUpdate(true); });
+    window.addEventListener("online", function () { checkForUpdate(true); renderAppStatus(); });
+    window.addEventListener("offline", renderAppStatus);
+  }
+
+  /* „Prüfen" im Zyklus-Sheet: jede App-Datei gegen ihre Prüfsumme lesen lassen und
+     den Speicherschutz erneut anfragen (jetzt mit Tipp – manche Browser wollen das). */
+  function offlineCheck() {
+    if (offline.pruefe) return offline.pruefe;
+    var swc = offline.supported ? navigator.serviceWorker : null;
+    offline.pruefe = Promise.all([
+      swc && swc.controller ? askWorker(swc.controller, true) : Promise.resolve(null),
+      speicherSchuetzen()
+    ]).then(function (r) {
+      offline.pruefe = null;
+      offline.frisch = !!r[0];
+      if (r[0]) onWorkerStatus(r[0]);
+      else renderAppStatus();
+      return r[0];
+    });
+    renderAppStatus();
+    return offline.pruefe;
+  }
+
+  /* Den Browser bitten, Plan, Haken und App-Dateien nicht bei Platzmangel zu räumen.
+     Das Ergebnis steht im Zyklus-Sheet. */
+  function speicherSchuetzen() {
+    var s = navigator.storage;
+    if (!s || !s.persist) return Promise.resolve(null);
+    var p;
+    try { p = s.persist(); } catch (e) { return Promise.resolve(null); }
+    return Promise.resolve(p).then(function (ok) {
+      offline.geschuetzt = !!ok;
+      renderAppStatus();
+      return offline.geschuetzt;
+    }, function () { return null; });
   }
 
   function checkForUpdate(force) {
@@ -2679,8 +2744,9 @@
     return m ? m[3] + "." + m[2] + "." + m[1] : "";
   }
 
-  function statusRow(kind, title, text) {
-    var row = h("div", "app-row app-row--" + kind);
+  /* still = ohne pulsierenden Ring: Nur die Offline-Zeile oben darf „leben". */
+  function statusRow(kind, title, text, still) {
+    var row = h("div", "app-row app-row--" + kind + (still ? " app-row--still" : ""));
     row.appendChild(h("i", "app-dot"));
     var body = h("div", "app-row-body");
     body.appendChild(h("b", null, title));
@@ -2689,25 +2755,53 @@
     return row;
   }
 
+  function schadenText(info) {
+    var teile = [];
+    if (info.fehlt) teile.push(info.fehlt + (info.fehlt === 1 ? " Datei fehlt" : " Dateien fehlen"));
+    if (info.defekt) teile.push(info.defekt + (info.defekt === 1 ? " Datei ist beschädigt" : " Dateien sind beschädigt"));
+    // Ältere Worker melden nur die Summe.
+    return teile.length ? teile.join(", ") : info.missing + " von " + info.total + " Dateien fehlen";
+  }
+
   function renderAppStatus() {
     if (!el.appStatus) return;
     var box = el.appStatus;
     var info = offline.info;
+    var ohneNetz = navigator.onLine === false;
     box.textContent = "";
 
+    /* 1 · Offline */
+    var row;
     if (!offline.supported) {
-      box.appendChild(statusRow("warn", "Offline nicht möglich",
-        "Dieser Browser kann die App nicht auf dem Gerät speichern."));
+      row = statusRow("warn", "Offline nicht möglich",
+        "Dieser Browser kann die App nicht auf dem Gerät speichern.");
     } else if (info && info.missing === 0) {
-      box.appendChild(statusRow("ok", "Offline bereit",
-        "Liegt vollständig auf diesem Gerät und startet ohne Internet · Stand " + versionDate(info.version)));
+      row = statusRow("ok", "Offline bereit",
+        (info.tief
+          ? info.total + " von " + info.total + " Dateien geprüft und unversehrt"
+          : "Liegt vollständig auf diesem Gerät und startet ohne Internet") +
+        " · Stand " + versionDate(info.version) + (ohneNetz ? " · gerade ohne Internet" : ""));
     } else if (info && info.missing > 0) {
-      box.appendChild(statusRow("warn", "Offline unvollständig",
-        info.missing + " von " + info.total + " Dateien fehlen – sie werden mit Internet automatisch nachgeladen."));
+      row = statusRow("warn", "Offline unvollständig", schadenText(info) +
+        (ohneNetz ? " – mit Internet repariert sich die App selbst." : " – wird gerade aus dem Internet repariert."));
     } else {
-      box.appendChild(statusRow("busy", "Wird eingerichtet …",
-        "Einmal mit Internet öffnen – danach startet Zyklus auch ohne Netz."));
+      row = statusRow("busy", "Wird eingerichtet …",
+        "Einmal mit Internet öffnen – danach startet Zyklus auch ohne Netz.");
     }
+    if (offline.supported && navigator.serviceWorker.controller) {
+      var pr = h("button", "app-row-btn app-row-btn--leise" + (offline.pruefe ? " laeuft" : ""),
+        offline.pruefe ? "Prüft …" : "Prüfen");
+      pr.type = "button";
+      pr.disabled = !!offline.pruefe;
+      pr.setAttribute("aria-label", "Offline-Check: alle App-Dateien auf diesem Gerät prüfen");
+      pr.addEventListener("click", offlineCheck);
+      row.appendChild(pr);
+    }
+    if (offline.frisch) {
+      row.classList.add("app-row--frisch");
+      offline.frisch = false;
+    }
+    box.appendChild(row);
 
     if (offline.updateReady) {
       var up = statusRow("up", "Neue Version geladen", "Wird beim nächsten Start aktiv.");
@@ -2718,9 +2812,50 @@
       box.appendChild(up);
     }
 
+    /* 2 · Speicher */
+    if (speicherFehler) {
+      box.appendChild(statusRow("err", "Speichern fehlgeschlagen",
+        "Das Gerät nimmt gerade keine Änderungen an. Sicherung speichern, damit nichts verloren geht.", true));
+    } else if (offline.geschuetzt === true) {
+      box.appendChild(statusRow("ok", "Speicher geschützt",
+        "Das System räumt Plan, Haken und App-Dateien nicht, wenn der Platz knapp wird.", true));
+    } else if (offline.geschuetzt === false) {
+      box.appendChild(statusRow("hint", "Speicher nicht dauerhaft geschützt",
+        "Wird der Platz knapp, darf das System ihn räumen – eine Sicherung hält deine Daten fest.", true));
+    }
+
+    /* 3 · Sicherung */
+    var st = sicherungsStand();
+    if (st.zuletzt) {
+      box.appendChild(statusRow(st.faellig ? "warn" : "ok", st.faellig ? "Sicherung fällig" : "Gesichert",
+        "Letzte Sicherung " + vorText(st.zuletzt) +
+        (st.neues ? " · seitdem geändert" : " · seitdem nichts geändert"), true));
+    } else {
+      box.appendChild(statusRow(st.faellig ? "warn" : "hint", "Noch keine Sicherung",
+        "„Sicherung speichern“ legt Plan und Haken als Datei ab – etwa in iCloud Drive.", true));
+    }
+
+    /* 4 · Installation */
     box.appendChild(isStandalone()
-      ? statusRow("ok", "Als App installiert", "Läuft vom Home-Bildschirm im Vollbild.")
-      : statusRow("hint", "Im Browser geöffnet", installSteps()));
+      ? statusRow("ok", "Als App installiert", "Läuft vom Home-Bildschirm im Vollbild.", true)
+      : statusRow("hint", "Im Browser geöffnet", installSteps(), true));
+  }
+
+  /* Punkt am Wochen-Badge, wenn im Zyklus-Sheet etwas Aufmerksamkeit braucht. */
+  function achtung() {
+    if (speicherFehler) return "fehler";
+    if (offline.info && offline.info.missing > 0) return "hinweis";
+    var st = sicherungsStand();
+    return st.faellig && !st.ruht ? "hinweis" : "";
+  }
+
+  function zeigeAchtung() {
+    if (!el.badge) return;
+    var a = achtung();
+    el.badge.classList.toggle("badge--hinweis", a === "hinweis");
+    el.badge.classList.toggle("badge--fehler", a === "fehler");
+    if (a) el.badge.setAttribute("aria-label", el.badgeText.textContent + " – Hinweis zur App auf diesem Gerät");
+    else el.badge.removeAttribute("aria-label");
   }
 
   /* ───────────────────────── Installation ───────────────────────── */
@@ -2901,10 +3036,147 @@
     var share = false;
     try { share = !!(file && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })); }
     catch (e) { share = false; }
-    if (!share) { downloadFile(json, name); return; }
-    navigator.share({ files: [file], title: "Zyklus-Sicherung" }).catch(function (err) {
-      if (!err || err.name !== "AbortError") downloadFile(json, name);
+    if (!share) { downloadFile(json, name); gesichert(); return; }
+    navigator.share({ files: [file], title: "Zyklus-Sicherung" }).then(gesichert, function (err) {
+      if (!err || err.name !== "AbortError") { downloadFile(json, name); gesichert(); }
     });
+  }
+
+  function zahlLesen(key) {
+    try {
+      var v = Number(localStorage.getItem(key));
+      return isFinite(v) && v > 0 ? v : 0;
+    } catch (e) { return 0; }
+  }
+
+  function zahlMerken(key, wert) {
+    try { localStorage.setItem(key, String(wert)); } catch (e) { /* nur best effort */ }
+  }
+
+  /* Eine Sicherungsdatei ist entstanden (Teilen-Menü abgeschlossen oder Download
+     angestoßen) – ab jetzt zählt die Erinnerung neu. */
+  function gesichert() {
+    zahlMerken(SICHERUNG_KEY, Date.now());
+    refreshSicherungsKarte();
+    renderAppStatus();
+    zeigeAchtung();
+    showToast("info", "Sicherung gespeichert");
+  }
+
+  /* ── Sicherungs-Erinnerung ──
+     Plan und Haken leben nur im Speicher dieses Geräts. Räumt das System ihn oder
+     geht das Handy verloren, hilft nur eine Datei außerhalb der App. Fällig ist
+     eine Sicherung, wenn sich seit der letzten etwas geändert hat und diese – oder
+     der erste Start mit dieser Erinnerung – über eine Woche zurückliegt. „Später"
+     lässt sie drei Tage ruhen. */
+  var SICHERUNG_FAELLIG_MS = 7 * DAY_MS;
+  var SPAETER_MS = 3 * DAY_MS;
+  var merkGezeigt = false;   // Karte schon einmal eingeblendet – beim Neuzeichnen nicht erneut aufspringen
+
+  function sicherungsStand() {
+    var jetzt = Date.now();
+    var zuletzt = zahlLesen(SICHERUNG_KEY);
+    var neues = zahlLesen(GEAENDERT_KEY) > zuletzt;
+    var bezug = Math.max(zuletzt, zahlLesen(SEIT_KEY) || jetzt);
+    return {
+      zuletzt: zuletzt,
+      neues: neues,
+      faellig: neues && jetzt - bezug > SICHERUNG_FAELLIG_MS,
+      ruht: zahlLesen(SPAETER_KEY) > jetzt
+    };
+  }
+
+  function vorText(ts) {
+    var a = new Date(ts);
+    var b = new Date();
+    a.setHours(12, 0, 0, 0);
+    b.setHours(12, 0, 0, 0);
+    var tage = Math.round((b - a) / DAY_MS);   // Kalendertage, Sommerzeit-fest
+    if (tage <= 0) return "heute";
+    if (tage === 1) return "gestern";
+    return "vor " + tage + " Tagen";
+  }
+
+  function sicherungsKarteGewollt() {
+    if (editing || installHintWanted()) return false;
+    var st = sicherungsStand();
+    return st.faellig && !st.ruht;
+  }
+
+  function buildSicherungsKarte() {
+    var st = sicherungsStand();
+    var card = h("section", "merk" + (merkGezeigt ? " merk--still" : ""));
+    card.id = "merk-karte";
+    card.setAttribute("aria-label", "Sicherung empfohlen");
+    merkGezeigt = true;
+
+    var head = h("div", "merk-head");
+    var ico = h("span", "merk-ico");
+    ico.appendChild(svgLine("merk-schild",
+      "M8 1.6 13.4 3.5v4.1c0 3.2-2.3 5.9-5.4 6.8C4.9 13.5 2.6 10.8 2.6 7.6V3.5L8 1.6ZM5.6 8.1l1.7 1.7 3.2-3.4",
+      "currentColor", "1.4"));
+    head.appendChild(ico);
+    var tt = h("div", "merk-tt");
+    tt.appendChild(h("b", null, "Zeit für eine Sicherung"));
+    tt.appendChild(h("span", null, st.zuletzt
+      ? "Letzte Sicherung " + vorText(st.zuletzt) + " – seitdem hast du trainiert oder den Plan geändert."
+      : "Plan und Haken liegen bisher nur in der App auf diesem Gerät."));
+    head.appendChild(tt);
+    card.appendChild(head);
+
+    card.appendChild(h("p", "merk-text",
+      "Eine Datei, etwa in iCloud Drive, holt alles zurück – falls das Handy den Speicher räumt oder du umziehst."));
+
+    var acts = h("div", "merk-acts");
+    var spaeter = h("button", "merk-btn", "Später");
+    spaeter.type = "button";
+    spaeter.addEventListener("click", function () {
+      zahlMerken(SPAETER_KEY, Date.now() + SPAETER_MS);
+      karteAusblenden(card);
+      zeigeAchtung();
+      renderAppStatus();
+    });
+    var jetzt = h("button", "merk-btn merk-btn--go", "Jetzt sichern");
+    jetzt.type = "button";
+    jetzt.addEventListener("click", exportBackup);
+    acts.appendChild(spaeter);
+    acts.appendChild(jetzt);
+    card.appendChild(acts);
+    return card;
+  }
+
+  function karteAusblenden(card) {
+    if (card.classList.contains("out")) return;
+    card.classList.add("out");
+    setTimeout(function () { if (card.parentNode) card.parentNode.removeChild(card); }, REDUCED ? 0 : 280);
+  }
+
+  function refreshSicherungsKarte() {
+    var alt = document.getElementById("merk-karte");
+    if (!sicherungsKarteGewollt()) {
+      if (alt) karteAusblenden(alt);
+      return;
+    }
+    if (alt) return;
+    var pill = el.main.querySelector(".today-pill");
+    el.main.insertBefore(buildSicherungsKarte(), pill ? pill.nextSibling : el.main.firstChild);
+  }
+
+  /* ── Speicherfehler ── */
+
+  function speicherGescheitert() {
+    if (speicherFehler) return;
+    speicherFehler = true;
+    showToast("warn", "Speichern fehlgeschlagen", "Änderungen gingen beim Schließen verloren – jetzt als Datei sichern.");
+    renderAppStatus();
+    zeigeAchtung();
+  }
+
+  function speicherWiederDa() {
+    speicherFehler = false;
+    if (toastNode && toastNode.classList.contains("toast--warn")) hideToast();
+    renderAppStatus();
+    zeigeAchtung();
   }
 
   function setBackupNote(text, kind) {
@@ -2990,6 +3262,9 @@
     pendingImport = null;
     state = loadState();   // dieselbe Prüfung und Reparatur wie beim App-Start
     save();
+    /* Der Stand auf dem Gerät liegt jetzt genau so als Datei vor – die
+       Sicherungs-Erinnerung beginnt von vorn. */
+    zahlMerken(SICHERUNG_KEY, Date.now());
     computeToday();
     editing = false;
     closeSheet(el.sheetCycle);
@@ -3011,15 +3286,17 @@
     setTimeout(function () { if (n.parentNode) n.parentNode.removeChild(n); }, REDUCED ? 0 : 240);
   }
 
-  function showToast(kind, text) {
+  function showToast(kind, text, detail) {
     hideToast();
     var t = h("div", "toast toast--" + kind);
-    t.setAttribute("role", "status");
+    t.setAttribute("role", kind === "warn" ? "alert" : "status");
 
     var ico = h("span", "toast-ico");
     ico.appendChild(kind === "update"
       ? svgLine("toast-refresh", "M13.3 6.3A5.5 5.5 0 1 0 13.5 9.7M13.7 2.5v3.9H9.8", "#fff", "1.8")
-      : svgLine("toast-check", "M3.5 8.4l3 3 6-6.6", "#30D158", "2.2"));
+      : kind === "warn"
+        ? svgLine("toast-warn", "M8 3.6v5.2M8 12.2v.2", "#FF9F0A", "2.4")
+        : svgLine("toast-check", "M3.5 8.4l3 3 6-6.6", "#30D158", "2.2"));
     t.appendChild(ico);
 
     var body = h("div", "toast-body");
@@ -3031,13 +3308,16 @@
       body.appendChild(h("span", null, "Schon offline gespeichert – ein Tipp, und sie ist aktiv."));
     } else {
       body.appendChild(h("b", null, text || ""));
+      if (detail) body.appendChild(h("span", null, detail));
     }
     t.appendChild(body);
 
-    if (kind === "update") {
-      var go = h("button", "toast-go", "Aktualisieren");
+    if (kind === "update" || kind === "warn") {
+      var go = h("button", "toast-go", kind === "update" ? "Aktualisieren" : "Sichern");
       go.type = "button";
-      go.addEventListener("click", function () { location.reload(); });
+      go.addEventListener("click", kind === "update"
+        ? function () { location.reload(); }
+        : function () { hideToast(); exportBackup(); });
       t.appendChild(go);
       var x = h("button", "toast-x", "✕");
       x.type = "button";
@@ -3056,6 +3336,7 @@
 
   function init() {
     state = loadState();
+    if (!zahlLesen(SEIT_KEY)) zahlMerken(SEIT_KEY, Date.now());
     save();                                      // Migration/Seed sofort festschreiben
     initReveal();
     computeToday();
@@ -3142,10 +3423,21 @@
     initInstall();
 
     /* Da Plan und Historie nur in localStorage leben: den Browser bitten,
-       den Speicher nicht bei Platzdruck zu räumen (best effort). */
-    if (navigator.storage && navigator.storage.persist) {
-      try { navigator.storage.persist().catch(function () {}); } catch (e) {}
-    }
+       den Speicher nicht bei Platzdruck zu räumen (best effort). Ob er zusagt,
+       steht im Zyklus-Sheet. */
+    speicherSchuetzen();
+
+    /* Prüfzugang für Werkzeuge/offlineprobe.mjs – liest den Stand, stößt höchstens
+       einen Offline-Check an. */
+    window.ZyklusOffline = {
+      zustand: function () {
+        return {
+          version: APP_VERSION, info: offline.info, geschuetzt: offline.geschuetzt,
+          speicherFehler: speicherFehler, sicherung: sicherungsStand(), achtung: achtung()
+        };
+      },
+      pruefen: offlineCheck
+    };
   }
 
   if (document.readyState === "loading") {

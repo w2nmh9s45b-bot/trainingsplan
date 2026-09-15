@@ -88,6 +88,17 @@ h2{ margin:0; }
   color:#9DB8FF; white-space:nowrap;
 }
 .badge-week:active{ background:rgba(80,110,255,.22); }
+/* Punkt am Badge: Im Zyklus-Sheet wartet etwas (Sicherung fällig, Offline-Dateien, Speicherfehler). */
+.badge-week.badge--hinweis::before,
+.badge-week.badge--fehler::before{
+  content:""; position:absolute; top:-4px; right:-4px; width:10px; height:10px; border-radius:50%;
+  background:var(--homegym); box-shadow:0 0 0 2px var(--bg), 0 0 10px rgba(255,159,10,.75);
+  animation:badgepunkt .5s cubic-bezier(.2,1.4,.3,1) both;
+}
+.badge-week.badge--fehler::before{
+  background:var(--danger); box-shadow:0 0 0 2px var(--bg), 0 0 12px rgba(255,69,58,.85);
+}
+@keyframes badgepunkt{ from{ transform:scale(0) } to{ transform:scale(1) } }
 
 .hdr-right{ margin-left:auto; flex:0 0 auto; display:flex; align-items:center; gap:10px; }
 @keyframes blink{ 50%{ opacity:.25 } }
@@ -725,6 +736,30 @@ body.editing .row{ cursor:default; }
   flex:0 0 auto; height:32px; padding:0 13px; border-radius:10px;
   background:var(--hero-grad); color:#fff; font-size:13px; font-weight:700;
 }
+/* Nur die oberste Zeile (Offline) pulsiert – darunter ruhige Punkte. */
+.app-row--still .app-dot::after{ display:none; }
+.app-row--warn{ border-color:rgba(255,159,10,.28); }
+.app-row--err{ border-color:rgba(255,69,58,.42); background:rgba(255,69,58,.08); }
+.app-row--err .app-dot{ background:var(--danger); box-shadow:0 0 10px rgba(255,69,58,.8); }
+/* Ergebnis eines Offline-Checks: einmal kurz aufleuchten */
+.app-row--frisch{ animation:frisch 1s cubic-bezier(.2,.8,.25,1); }
+@keyframes frisch{
+  0%{ box-shadow:0 0 0 0 rgba(48,209,88,.55); transform:scale(1.015) }
+  100%{ box-shadow:0 0 0 16px rgba(48,209,88,0); transform:none }
+}
+.app-row-btn--leise{
+  display:inline-flex; align-items:center; gap:7px;
+  background:rgba(255,255,255,.07); border:1px solid var(--card-line);
+  color:var(--fg); font-weight:600;
+}
+.app-row-btn--leise:active{ background:rgba(255,255,255,.14); }
+.app-row-btn--leise:disabled{ opacity:.8; }
+.app-row-btn--leise.laeuft::before{
+  content:""; width:12px; height:12px; border-radius:50%;
+  border:2px solid rgba(255,255,255,.22); border-top-color:#fff;
+  animation:dreh .8s linear infinite;
+}
+@keyframes dreh{ to{ transform:rotate(360deg) } }
 .app-acts{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px; }
 .app-btn{
   height:44px; border-radius:13px;
@@ -803,6 +838,54 @@ body.editing .row{ cursor:default; }
 }
 .install-save:active{ background:rgba(80,110,255,.22); }
 
+/* Sicherungs-Erinnerung – oben auf der Tagesseite, bis gesichert oder „Später" */
+.merk{
+  position:relative; margin:0 0 16px; padding:14px;
+  border-radius:20px; border:1.5px solid transparent;
+  background:linear-gradient(#15110C,#15110C) padding-box, var(--homegym-grad) border-box;
+  box-shadow:0 12px 34px rgba(255,159,10,.14);
+  animation:grow .45s cubic-bezier(.2,.8,.25,1);
+}
+.merk--still{ animation:none; }
+.merk.out{ animation:installout .28s ease-in forwards; }
+.merk-head{ display:flex; align-items:center; gap:12px; }
+.merk-ico{
+  position:relative; width:46px; height:46px; flex:0 0 auto; border-radius:14px;
+  display:flex; align-items:center; justify-content:center; color:#FFB340;
+  background:rgba(255,159,10,.13); border:1px solid rgba(255,159,10,.42);
+}
+.merk-ico::after{
+  content:""; position:absolute; inset:-1px; border-radius:inherit; border:2px solid rgba(255,159,10,.55);
+  animation:merkping 2.8s ease-out infinite;
+}
+/* Kleiner als das allgemeine „ping": Der Ring bleibt innerhalb der Karte. */
+@keyframes merkping{ from{ transform:scale(1); opacity:.6 } to{ transform:scale(1.32); opacity:0 } }
+.merk-schild{ width:24px; height:24px; }
+.merk-schild path{ stroke-dasharray:60; stroke-dashoffset:60; animation:schild 1.1s .25s ease-out forwards; }
+.merk--still .merk-schild path{ animation:none; stroke-dashoffset:0; }
+@keyframes schild{ to{ stroke-dashoffset:0 } }
+.merk-tt{ min-width:0; display:flex; flex-direction:column; gap:2px; }
+.merk-tt b{ font-size:16px; font-weight:800; letter-spacing:-.01em; }
+.merk-tt span{ font-size:12.5px; color:var(--fg2); line-height:1.35; }
+.merk-text{ margin:10px 0 0; font-size:12.5px; color:var(--fg3); line-height:1.45; }
+.merk-acts{ display:grid; grid-template-columns:1fr 1.5fr; gap:10px; margin-top:12px; }
+.merk-btn{
+  height:42px; border-radius:13px;
+  border:1px solid var(--card-line); background:var(--card);
+  font-size:13.5px; font-weight:600; color:var(--fg2);
+}
+.merk-btn:active{ background:rgba(255,255,255,.10); }
+.merk-btn--go{
+  position:relative; overflow:hidden;
+  border-color:transparent; background:var(--homegym-grad);
+  color:#1C1204; font-weight:800; box-shadow:0 6px 18px rgba(255,159,10,.32);
+}
+.merk-btn--go::after{
+  content:""; position:absolute; top:0; bottom:0; left:0; width:60%;
+  background:linear-gradient(100deg,transparent,rgba(255,255,255,.5),transparent);
+  animation:sweep 2.8s 1s ease-in-out infinite;
+}
+
 /* Hinweis-Pille oben: „Offline bereit", „Neue Version geladen", Bestätigungen */
 .toast{
   position:fixed; z-index:70; left:50%; top:calc(var(--hdr) + 10px);
@@ -854,6 +937,14 @@ body.editing .row{ cursor:default; }
   animation:sweep 2.6s 1.1s ease-in-out infinite;
 }
 .toast-x{ flex:0 0 auto; width:30px; height:30px; border-radius:50%; color:var(--fg3); font-size:13px; }
+/* Warnung: Speichern fehlgeschlagen – bleibt stehen, bis gesichert oder weggeklickt */
+.toast--warn{
+  border-color:rgba(255,159,10,.5);
+  box-shadow:0 14px 40px rgba(0,0,0,.55), 0 0 30px rgba(255,159,10,.18);
+}
+.toast--warn .toast-ico{ background:rgba(255,159,10,.16); border-color:rgba(255,159,10,.5); }
+.toast-warn path{ animation:blink 1.2s ease-in-out 3; }
+.toast--warn .toast-go{ background:var(--homegym-grad); color:#1C1204; box-shadow:0 4px 14px rgba(255,159,10,.38); }
 
 /* ══════════════════════ Breit ══════════════════════ */
 @media (min-width:560px){

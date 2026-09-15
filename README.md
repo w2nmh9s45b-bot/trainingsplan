@@ -117,9 +117,24 @@ Die App arbeitet **offline zuerst** (`sw.js`): Jeder Start kommt sofort aus dem 
 des Geräts – egal ob Netz da ist, schwach ist oder fehlt. Das Internet wird nur noch
 gebraucht, um eine neue Fassung abzuholen.
 
-- **Einrichtung:** einmal mit Internet öffnen. Der Service Worker lädt alle 11 App-Dateien
-  in den Cache `zyklus-<VERSION>`; danach meldet die App einmalig **„Offline bereit"**.
-  Der Stand steht dauerhaft im Zyklus-Sheet („Offline bereit · Stand TT.MM.JJJJ").
+- **Einrichtung:** einmal mit Internet öffnen – auf dem iPhone die App **vom Home-Bildschirm**,
+  denn sie hat einen eigenen Speicher, getrennt von Safari. Der Service Worker lädt alle
+  Offline-Dateien (App, Katalogdaten, Icons – derzeit 24) in den Cache `zyklus-<VERSION>`;
+  danach meldet die App einmalig **„Offline bereit"**. Der Stand steht dauerhaft im
+  Zyklus-Sheet („Offline bereit · Stand TT.MM.JJJJ").
+- **Geprüft:** Jede Datei muss Byte für Byte zu ihrer SHA-256-Summe im Block `PRUEFSUMMEN`
+  von `sw.js` passen, sonst gilt das Laden als gescheitert und die bisherige Fassung bleibt.
+  So landet nie eine alte Kopie aus einem Zwischenspeicher im Offline-Speicher (etwa vom CDN
+  direkt nach dem Hochladen), auch keine abgeschnittene. Geladen wird mit `?v=VERSION` am
+  Zwischenspeicher vorbei, gespeichert unter der Adresse ohne Anhängsel.
+- **Offline-Check:** Beim Start zählt der Worker die Dateien im Speicher und liest sie
+  danach gründlich gegen die Prüfsummen (von selbst höchstens alle 10 Minuten). „Prüfen“
+  in der Offline-Zeile des Zyklus-Sheets tut das sofort und zeigt z. B. „24 von 24 Dateien
+  geprüft und unversehrt“. Fehlt eine Datei oder ist eine beschädigt, steht das dort, am
+  Wochen-Badge erscheint ein oranger Punkt, und mit Netz repariert sich der Speicher selbst.
+- **Speicherschutz:** Beim Start (und bei „Prüfen“) bittet die App den Browser per
+  `navigator.storage.persist()`, Plan, Haken und App-Dateien nicht bei Platzmangel zu räumen.
+  Ob er zusagt, zeigt das Zyklus-Sheet („Speicher geschützt“ / „nicht dauerhaft geschützt“).
 - **Updates:** Beim Öffnen und beim Zurückholen aus dem Hintergrund (höchstens einmal pro
   Minute) fragt die App beim Server nach. Eine neue Fassung wird im Hintergrund
   **vollständig** in einen eigenen Cache geladen; erst dann übernimmt der neue Worker.
@@ -155,6 +170,17 @@ Plan, Übungsdatenbank und Haken lassen sich als Datei mitnehmen – wichtig, we
 Umzug Safari → installierte App: in Safari „Sicherung speichern" → „In Dateien sichern";
 in der App vom Home-Bildschirm Wochen-Badge → „Sicherung laden" → Datei wählen.
 
+- **Erinnerung:** Plan und Haken leben nur im Speicher des Geräts. Hat sich seit der letzten
+  Sicherung etwas geändert und liegt diese (oder der erste Start mit Erinnerung) über eine
+  Woche zurück, erscheint oben auf der Tagesseite die Karte **„Zeit für eine Sicherung“** und
+  am Wochen-Badge ein oranger Punkt. „Jetzt sichern“ öffnet das Teilen-Menü, „Später“ lässt
+  sie drei Tage ruhen. Das Zyklus-Sheet zeigt immer „Gesichert · Letzte Sicherung vor … Tagen“.
+  Als Änderung zählt nur, was `save()` wirklich anders schreibt (Haken, Plan, Datenbank).
+- **Speicherfehler:** Nimmt das Gerät keine Änderungen mehr an (Speicher voll, gesperrt),
+  erscheint sofort die Pille **„Speichern fehlgeschlagen“** mit „Sichern“, dazu ein roter Punkt
+  am Badge und eine rote Zeile im Zyklus-Sheet – bis wieder gespeichert werden kann. Die
+  Sicherungsdatei enthält dabei trotzdem den aktuellen Stand aus dem Arbeitsspeicher.
+
 ## Speicherung
 
 Alles liegt im `localStorage` des Browsers unter dem Schlüssel `zyklus.v2`:
@@ -169,7 +195,11 @@ ersten App-Version (`zyklus.v1`) wird beim ersten Start automatisch übernommen.
 Nebenschlüssel: `zyklus.v2.vor-import` (Stand vor dem letzten Sicherungs-Import),
 `zyklus.v2.corrupt` (erster defekter Stand), `zyklus.v2.offline-bereit` (Meldung
 „Offline bereit" schon gezeigt), `zyklus.v2.installhinweis` (Installationskarte
-ausgeblendet). Die App-Dateien selbst liegen im Cache `zyklus-<VERSION>`.
+ausgeblendet), dazu je ein Zeitstempel in ms für die Sicherungs-Erinnerung:
+`zyklus.v2.geaendert` (letzte echte Änderung), `zyklus.v2.sicherung` (letzte Sicherung
+erstellt oder geladen), `zyklus.v2.sicherung-spaeter` (Erinnerung ruht bis) und
+`zyklus.v2.seit` (erster Start mit Erinnerung). Keiner davon wandert in eine
+Sicherungsdatei. Die App-Dateien selbst liegen im Cache `zyklus-<VERSION>`.
 
 ## Dateien
 
@@ -184,9 +214,10 @@ ausgeblendet). Die App-Dateien selbst liegen im Cache `zyklus-<VERSION>`.
 | `daten-import/` | Quellen des Katalogs, Spezifikation, Architektur-Empfehlung, Referenzskripte, `korrekturen.json` |
 | `scripts/` | `split-uebungen.mjs`, `validate-daten.mjs`, `korrekturen.mjs`, `geometrie.mjs`, `vertikalschnitt.json` |
 | `tests/`, `package.json` | Unit-Tests (`npm test`); package.json nur mit Skripten, ohne Abhängigkeiten |
-| `sw.js` | Service Worker: offline zuerst, atomare Updates, Selbstreparatur |
+| `sw.js` | Service Worker: offline zuerst, atomare und geprüfte Updates (`PRUEFSUMMEN`), Offline-Check, Selbstreparatur |
 | `manifest.webmanifest`, `icons/` | Homescreen-Icon und App-Metadaten |
-| `Werkzeuge/stempeln.sh` | Version aus dem Dateiinhalt in `sw.js` + `app.js` schreiben (`--pruefen`, `--liste`, `--hook-einrichten`) |
+| `Werkzeuge/stempeln.sh` | Version aus dem Dateiinhalt in `sw.js` + `app.js` und die SHA-256-Summen in `PRUEFSUMMEN` schreiben (`--pruefen`, `--liste`, `--hook-einrichten`) |
+| `Werkzeuge/offlineprobe.mjs` | Test ohne Netz im echten Chrome: alle Funktionen offline, Prüfsummen, Reparatur, Speicherfehler, Erinnerung (siehe „Offline testen") |
 | `.githooks/pre-commit` | stempelt vor jedem Commit automatisch (Starter via `--hook-einrichten`) |
 
 ## Plan per Excel ändern (optional)
@@ -213,8 +244,32 @@ Ablauf siehe Skill `deploy-pages`.
    im Repo liegt.
 3. **Browser-Upload statt Push** (kein Token): Der Hook läuft dabei nicht – vorher selbst
    `bash Werkzeuge/stempeln.sh` ausführen und `sw.js` + `app.js` immer mit hochladen.
-4. Vor dem Veröffentlichen: `bash Werkzeuge/stempeln.sh --pruefen` muss „aktuell" melden.
+4. Vor dem Veröffentlichen: `bash Werkzeuge/stempeln.sh --pruefen` muss „aktuell … Prüfsummen
+   passen" melden, sonst nimmt der Service Worker die neue Fassung nicht an.
 5. Danach: `var VERSION` in der Live-`sw.js` muss der lokalen entsprechen.
 
 Auf dem iPhone: App einmal mit Internet öffnen – die neue Fassung lädt im Hintergrund,
 danach „Aktualisieren" antippen (oder beim nächsten Start automatisch).
+
+## Offline testen
+
+**Automatisch (Mac):** `node Werkzeuge/offlineprobe.mjs` – startet einen eigenen kleinen
+Webserver, richtet die App in Chrome ein, schaltet Server und Netz ab und prüft dann Start,
+Abhaken, Neustart, Anleitung mit Animation, Kalender, Bearbeiten, Sicherung speichern und
+laden, den Offline-Check (auch mit absichtlich beschädigter und fehlender Datei), die
+Selbstreparatur mit Netz, das Abweisen einer veralteten Datei vom Server, die Warnung bei
+vollem Speicher, die Sicherungs-Erinnerung und das **Update von der zuletzt veröffentlichten
+Fassung** (`origin/main`, per `ZYKLUS_PROBE_VORFASSUNG=<git-Rev>` änderbar): alte Fassung
+einrichten und abhaken, neue ausliefern, Haken erhalten, danach Start ohne Netz – also genau
+den Weg, den das Handy beim nächsten Öffnen geht. Vor dem Veröffentlichen laufen lassen.
+Braucht Google Chrome und `playwright-core`
+(gesucht neben `~/Repos/orgahub-desktop`, sonst `ZYKLUS_PLAYWRIGHT=/pfad/zu/package.json`);
+Fotos und Bericht landen in einem Temp-Ordner (`ZYKLUS_PROBE_AUS` setzt ihn fest).
+
+**Auf dem iPhone (Flugmodus-Test)** – Chrome ist nicht Safari, das Gerät zählt:
+1. Mit Internet die App **vom Home-Bildschirm** öffnen, bis „Offline bereit" kommt.
+2. Wochen-Badge → „Prüfen" → „… Dateien geprüft und unversehrt".
+3. Flugmodus an (WLAN aus), App ganz schließen (hochwischen) und neu öffnen.
+4. Abhaken, eine Anleitung öffnen, Kalender öffnen, App schließen und wieder öffnen –
+   alles muss da sein; im Zyklus-Sheet steht „gerade ohne Internet".
+5. Flugmodus aus.

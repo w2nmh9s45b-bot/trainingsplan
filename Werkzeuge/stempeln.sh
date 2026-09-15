@@ -9,6 +9,13 @@
 # Die beiden Versionszeilen selbst zählen nicht zur Prüfsumme.
 # Gleicher Inhalt → Version bleibt, jede Änderung → neue Version.
 #
+# Danach schreibt es je App-Datei die SHA-256-Summe in den Block PRUEFSUMMEN von
+# sw.js. Der Service Worker nimmt beim Update nur Dateien in den Offline-Speicher,
+# die genau dazu passen (keine alte Kopie aus einem Zwischenspeicher), und prüft
+# den Speicher später damit auf Beschädigung. Der Block zählt nicht zur Version –
+# er folgt aus denselben Dateien – und entsteht erst nach dem Versionsstempel,
+# weil app.js die Versionszeile selbst enthält.
+#
 #   bash Werkzeuge/stempeln.sh                  Version setzen (nur wenn nötig)
 #   bash Werkzeuge/stempeln.sh --pruefen        nur prüfen: Exit 1, wenn die Version nicht zum Inhalt passt
 #   bash Werkzeuge/stempeln.sh --liste          App-Dateien ausgeben (für den pre-commit-Hook)
@@ -67,6 +74,65 @@ if [ -z "$alt_sw" ] || [ -z "$alt_app" ]; then
   exit 2
 fi
 
+# Block PRUEFSUMMEN in sw.js: Marken per awk/index statt Regex – Stern und
+# Schrägstrich der Kommentarzeile müssten sonst je Werkzeug anders maskiert werden.
+if ! awk 'index($0,"/* PRUEFSUMMEN:ANFANG")==1{a++} index($0,"/* PRUEFSUMMEN:ENDE")==1{e++}
+          END{exit !(a==1 && e==1)}' sw.js; then
+  echo "stempeln: sw.js braucht genau einen Block /* PRUEFSUMMEN:ANFANG */ … /* PRUEFSUMMEN:ENDE */" >&2
+  exit 2
+fi
+
+sw_ohne_block() {
+  awk 'index($0,"/* PRUEFSUMMEN:ANFANG")==1{drin=1} !drin{print}
+       drin && index($0,"/* PRUEFSUMMEN:ENDE")==1{drin=0}' sw.js
+}
+
+block_ist() {
+  awk 'index($0,"/* PRUEFSUMMEN:ANFANG")==1{drin=1} drin{print}
+       drin && index($0,"/* PRUEFSUMMEN:ENDE")==1{drin=0}' sw.js
+}
+
+anzahl=$(printf '%s\n' $liste | awk 'END{print NR}')
+
+pruefblock() {   # Soll-Block aus dem jetzigen Inhalt der App-Dateien
+  local d hex n=0
+  echo '/* PRUEFSUMMEN:ANFANG – setzt Werkzeuge/stempeln.sh aus dem Dateiinhalt, nicht von Hand ändern */'
+  echo 'var PRUEFSUMMEN = {'
+  for d in $liste; do
+    n=$((n + 1))
+    hex=$(shasum -a 256 < "$d" | cut -c1-64)
+    if [ "$n" -lt "$anzahl" ]; then
+      printf '  "%s": "%s",\n' "$d" "$hex"
+    else
+      printf '  "%s": "%s"\n' "$d" "$hex"
+    fi
+  done
+  echo '};'
+  echo '/* PRUEFSUMMEN:ENDE */'
+}
+
+block_schreiben() {
+  local neu tmp
+  neu=$(mktemp)
+  tmp=$(mktemp)
+  pruefblock > "$neu"
+  awk -v datei="$neu" '
+    index($0,"/* PRUEFSUMMEN:ANFANG")==1 { while ((getline z < datei) > 0) print z; drin=1 }
+    !drin { print }
+    drin && index($0,"/* PRUEFSUMMEN:ENDE")==1 { drin=0 }
+  ' sw.js > "$tmp"
+  cat "$tmp" > sw.js
+  rm -f "$neu" "$tmp"
+}
+
+ersetzen() {   # $1 Datei, $2 sed-Ausdruck – Inhalt ersetzen, Datei selbst bleibt
+  local tmp
+  tmp=$(mktemp)
+  sed "$2" "$1" > "$tmp"
+  cat "$tmp" > "$1"
+  rm -f "$tmp"
+}
+
 summe=$(
   {
     for d in $liste; do
@@ -77,35 +143,46 @@ summe=$(
         shasum -a 256 < "$d"
       fi
     done
-    grep -v "$SW_ZEILE" sw.js
+    sw_ohne_block | grep -v "$SW_ZEILE"
   } | shasum -a 256 | cut -c1-10
 )
 
+version_aktuell=0
 if [ "${alt_sw##*.}" = "$summe" ] && [ "$alt_app" = "$alt_sw" ]; then
-  echo "Version ist aktuell ($alt_sw)"
-  exit 0
+  version_aktuell=1
 fi
 
 if [ "${1:-}" = "--pruefen" ]; then
-  echo "Version VERALTET: sw.js $alt_sw / app.js $alt_app passt nicht zum Inhalt ($summe)." >&2
-  echo "→ bash Werkzeuge/stempeln.sh ausführen und sw.js + app.js mit hochladen/committen" >&2
-  exit 1
+  if [ "$version_aktuell" -ne 1 ]; then
+    echo "Version VERALTET: sw.js $alt_sw / app.js $alt_app passt nicht zum Inhalt ($summe)." >&2
+    echo "→ bash Werkzeuge/stempeln.sh ausführen und sw.js + app.js mit hochladen/committen" >&2
+    exit 1
+  fi
+  if [ "$(block_ist)" != "$(pruefblock)" ]; then
+    echo "Prüfsummen VERALTET: Block PRUEFSUMMEN in sw.js passt nicht zu den App-Dateien." >&2
+    echo "→ bash Werkzeuge/stempeln.sh ausführen und sw.js mit hochladen/committen" >&2
+    exit 1
+  fi
+  echo "Version ist aktuell ($alt_sw), Prüfsummen passen ($anzahl Dateien)"
+  exit 0
 fi
 
-# Datum nur bei echter Inhaltsänderung erneuern, sonst bleibt die Version stabil.
-if [ "${alt_sw##*.}" = "$summe" ]; then
-  neu="$alt_sw"
+if [ "$version_aktuell" -eq 1 ]; then
+  echo "Version ist aktuell ($alt_sw)"
 else
-  neu="$(date +%Y-%m-%d).$summe"
+  # Datum nur bei echter Inhaltsänderung erneuern, sonst bleibt die Version stabil.
+  if [ "${alt_sw##*.}" = "$summe" ]; then
+    neu="$alt_sw"
+  else
+    neu="$(date +%Y-%m-%d).$summe"
+  fi
+  ersetzen sw.js "s/^var VERSION = \"[^\"]*\"/var VERSION = \"$neu\"/"
+  ersetzen app.js "s/^  var APP_VERSION = \"[^\"]*\"/  var APP_VERSION = \"$neu\"/"
+  echo "Version: $alt_sw → $neu"
 fi
 
-ersetzen() {   # $1 Datei, $2 sed-Ausdruck – Inhalt ersetzen, Datei selbst bleibt
-  local tmp
-  tmp=$(mktemp)
-  sed "$2" "$1" > "$tmp"
-  cat "$tmp" > "$1"
-  rm -f "$tmp"
-}
-ersetzen sw.js "s/^var VERSION = \"[^\"]*\"/var VERSION = \"$neu\"/"
-ersetzen app.js "s/^  var APP_VERSION = \"[^\"]*\"/  var APP_VERSION = \"$neu\"/"
-echo "Version: $alt_sw → $neu"
+# Erst jetzt: app.js trägt die endgültige Versionszeile.
+if [ "$(block_ist)" != "$(pruefblock)" ]; then
+  block_schreiben
+  echo "Prüfsummen: $anzahl Dateien eingetragen"
+fi
