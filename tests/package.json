@@ -1,0 +1,5 @@
+{
+  "private": true,
+  "description": "Nur damit 'node --test tests/' in Node 24 laeuft: Node loest ein Verzeichnis-Argument ueber 'main' auf. Keine Abhaengigkeiten.",
+  "main": "animation.test.mjs"
+}

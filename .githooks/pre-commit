@@ -1,0 +1,53 @@
+#!/bin/bash
+# Zyklus – vor jedem Commit die App-Version passend zum Inhalt stempeln.
+# Ohne neue Version bliebe das Handy auf der alten App-Fassung stehen.
+# Einrichten (einmal je Klon): bash Werkzeuge/stempeln.sh --hook-einrichten
+# Alles läuft über `bash …` – Ausführungsrechte gehen beim Browser-Upload auf
+# GitHub verloren und sollen hier keine Rolle spielen.
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+dateien=$(bash Werkzeuge/stempeln.sh --liste)
+
+# Jede Datei aus ASSETS muss im Commit liegen – sonst verspricht sw.js eine Datei,
+# die der Server nicht hat, und jede Installation einer neuen Fassung scheitert.
+for d in $dateien; do
+  if ! git ls-files --error-unmatch -- "$d" >/dev/null 2>&1; then
+    echo "pre-commit: $d steht in ASSETS (sw.js), ist aber nicht im Repo → erst 'git add $d'." >&2
+    exit 1
+  fi
+done
+
+# Die Version wird aus dem Arbeitsordner berechnet. Liegen dort nicht vorgemerkte
+# Änderungen an App-Dateien, passte sie nicht zum Commit – dann lieber anhalten.
+if ! git diff --quiet -- $dateien; then
+  echo "pre-commit: Nicht vorgemerkte Änderungen an App-Dateien:" >&2
+  git diff --stat -- $dateien >&2
+  echo "→ erst 'git add' (oder 'git stash'), dann erneut committen." >&2
+  exit 1
+fi
+
+# Übungskatalog prüfen, bevor gestempelt wird: Schema der Quelle, erzeugter Stand in
+# daten/ samt ASSETS-Liste, Geometrie gegen die Referenz-Kinematik, dazu die Tests.
+# Nur wenn es das Werkzeug gibt (package.json) und node da ist.
+if [ -f package.json ] && command -v node >/dev/null 2>&1; then
+  if ! node scripts/validate-daten.mjs; then
+    echo "pre-commit: Datenprüfung fehlgeschlagen (node scripts/validate-daten.mjs) – Commit abgebrochen." >&2
+    echo "→ Fehler oben beheben; nach Änderungen an daten-import/ zuerst 'npm run daten'." >&2
+    exit 1
+  fi
+  if ! node scripts/geometrie.mjs; then
+    echo "pre-commit: Geometrieprüfung nicht SAUBER (node scripts/geometrie.mjs) – Commit abgebrochen." >&2
+    exit 1
+  fi
+  if [ -d tests ]; then
+    # Node 24 nimmt bei --test keinen Ordner an ("tests/" → MODULE_NOT_FOUND), nur Muster.
+    if ! node --test "tests/**/*.{js,mjs,cjs}"; then
+      echo "pre-commit: Tests fehlgeschlagen (npm test) – Commit abgebrochen." >&2
+      exit 1
+    fi
+  fi
+fi
+
+bash Werkzeuge/stempeln.sh
+git add sw.js app.js

@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Zyklus – Trainingsplan</title>
-<meta name="description" content="Editierbarer Trainingsplan im Wochen-Zyklus: Übungen abhaken, Plan anpassen, Workout-Zeit tracken.">
+<meta name="description" content="Editierbarer Trainingsplan im Wochen-Zyklus: Übungen abhaken, Plan anpassen, Anleitungen mit Animation.">
 <meta name="theme-color" content="#06070B">
 <meta name="color-scheme" content="dark">
 <!-- iOS PWA -->
@@ -26,7 +26,6 @@
       <span id="badge-week-text"></span>
     </button>
     <div class="hdr-right">
-      <span id="hdr-timer" class="hdr-timer" hidden></span>
       <span id="hdr-count" class="hdr-count"></span>
       <button id="btn-basics" class="iconbtn" type="button" aria-haspopup="dialog" aria-label="Basics – Trainingsprinzipien">?</button>
     </div>
@@ -78,6 +77,21 @@
       <div id="cyc-weeks" class="cyc-choice"></div>
       <p id="cyc-hint" class="cyc-hint"></p>
       <button id="cyc-reset" class="cyc-reset" type="button">Plan auf Startplan zurücksetzen</button>
+
+      <section class="app-box" aria-labelledby="app-h">
+        <h3 id="app-h" class="app-h">App auf diesem Gerät</h3>
+        <div id="app-status" class="app-status" aria-live="polite"></div>
+        <div class="app-acts">
+          <button id="app-export" class="app-btn" type="button">Sicherung speichern</button>
+          <button id="app-import" class="app-btn" type="button">Sicherung laden</button>
+        </div>
+        <input id="app-file" class="vh" type="file" accept=".json,application/json,text/plain"
+               tabindex="-1" aria-hidden="true">
+        <div id="app-confirm" class="app-confirm" role="group" aria-label="Sicherung übernehmen" hidden></div>
+        <p id="app-note" class="app-note" hidden></p>
+        <p class="app-hint">Die Sicherung enthält Plan, Übungsdatenbank und alle Haken – für den Umzug
+          zwischen Browser und installierter App oder auf ein neues Handy.</p>
+      </section>
     </div>
   </div>
 </div>
@@ -129,27 +143,49 @@
   </div>
 </div>
 
-<!-- Übungsdatenbank-Sheet -->
-<div id="sheet-db" class="sheet" role="dialog" aria-modal="true" aria-label="Übungsdatenbank" hidden>
+<!-- Archiv-Sheet (Übungskatalog + alles, was je im Plan stand) -->
+<div id="sheet-db" class="sheet" role="dialog" aria-modal="true" aria-label="Übungsarchiv" hidden>
   <div class="sheet-scrim" data-close="1"></div>
   <div class="sheet-panel">
     <div class="sheet-grip" data-close="1"><i></i></div>
     <div class="sheet-head">
-      <h2>Übungsdatenbank</h2>
+      <h2>Archiv</h2>
       <button class="sheet-x" type="button" data-close="1" aria-label="Schließen">✕</button>
     </div>
     <div class="sheet-body">
       <p id="db-count" class="db-count"></p>
-      <input id="db-search" class="field" type="search" placeholder="Übung suchen …"
+      <input id="db-search" class="field" type="search" placeholder="Name oder Ziel suchen …"
              autocomplete="off" autocorrect="off" autocapitalize="off">
+      <div id="arch-filter" class="arch-filter" hidden>
+        <select id="f-kategorie" class="field sel" aria-label="Kategorie"><option value="">Alle Kategorien</option></select>
+        <select id="f-disziplin" class="field sel" aria-label="Disziplin"><option value="">Alle Disziplinen</option></select>
+        <select id="f-level" class="field sel" aria-label="Level"><option value="">Alle Level</option></select>
+        <select id="f-geraet" class="field sel" aria-label="Equipment"><option value="">Alle Geräte</option></select>
+        <button id="arch-reset" class="arch-reset" type="button" hidden>Filter zurücksetzen</button>
+      </div>
       <div id="db-list" class="db-list"></div>
-      <p class="db-hint">Aus dem Plan entfernte Übungen landen automatisch hier. Zurück in den
-        Plan: „Bearbeiten“ → „Übung hinzufügen“ am gewünschten Tag.</p>
+      <p class="db-hint">Katalogübungen und alles, was je im Plan stand. Name antippen öffnet Anleitung
+        und Animation, „+“ legt die Übung an einem Tag in den Plan. Aus dem Plan entfernte Übungen
+        bleiben hier.</p>
     </div>
   </div>
 </div>
 
+<!-- Detailfenster einer Übung (aus Archiv und Plan identisch) -->
+<div id="sheet-detail" class="sheet sheet--detail" role="dialog" aria-modal="true" aria-labelledby="det-name" hidden>
+  <div class="sheet-scrim" data-close="1"></div>
+  <div class="sheet-panel sheet-panel--breit">
+    <div class="sheet-grip" data-close="1"><i></i></div>
+    <div class="sheet-head">
+      <h2 id="det-name">Übung</h2>
+      <button class="sheet-x" type="button" data-close="1" aria-label="Schließen">✕</button>
+    </div>
+    <div id="det-body" class="sheet-body det-body"></div>
+  </div>
+</div>
+
 <script src="data.js"></script>
+<script src="animation.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

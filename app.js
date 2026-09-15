@@ -8,6 +8,7 @@
   var SEED = window.PLAN;
   var STORE_KEY = "zyklus.v2";
   var LEGACY_KEY = "zyklus.v1";
+  var APP_VERSION = "2026-09-15.3353f6f015";   // setzt Werkzeuge/stempeln.sh – gleich VERSION in sw.js
 
   /* Montag, mit dem Woche 1 des Zyklus beginnt (Datum der Quell-Excel).
      Absolutes Ankerdatum statt KW-Parität: Jahre mit 53 ISO-Wochen würden
@@ -34,7 +35,6 @@
     badge: document.getElementById("badge-week"),
     badgeText: document.getElementById("badge-week-text"),
     count: document.getElementById("hdr-count"),
-    hdrTimer: document.getElementById("hdr-timer"),
     strip: document.getElementById("strip"),
     stripWrap: document.getElementById("strip-wrap"),
     pager: document.getElementById("pager"),
@@ -73,10 +73,25 @@
     calDow: document.getElementById("cal-dow"),
     calGrid: document.getElementById("cal-grid"),
     calStats: document.getElementById("cal-stats"),
-    calDetail: document.getElementById("cal-detail")
+    calDetail: document.getElementById("cal-detail"),
+    appStatus: document.getElementById("app-status"),
+    appExport: document.getElementById("app-export"),
+    appImport: document.getElementById("app-import"),
+    appFile: document.getElementById("app-file"),
+    appConfirm: document.getElementById("app-confirm"),
+    appNote: document.getElementById("app-note"),
+    archFilter: document.getElementById("arch-filter"),
+    fKategorie: document.getElementById("f-kategorie"),
+    fDisziplin: document.getElementById("f-disziplin"),
+    fLevel: document.getElementById("f-level"),
+    fGeraet: document.getElementById("f-geraet"),
+    archReset: document.getElementById("arch-reset"),
+    sheetDetail: document.getElementById("sheet-detail"),
+    detName: document.getElementById("det-name"),
+    detBody: document.getElementById("det-body")
   };
 
-  var state = null;      // { v:2, shift, days:{key:{start,end,checks:{uid:ts}}}, plan:{weeks:[…]}, db:[…] }
+  var state = null;      // { v:2, shift, days:{key:{checks:{uid:ts}}}, plan:{weeks:[…]}, db:[…] }
   var view = null;       // { week:1…N, dayIndex:0-6 }
   var todayRef = null;   // { key, week, dayIndex, date }
   var editing = false;
@@ -175,11 +190,16 @@
           state.db[i].qty = item.qty || "";
           state.db[i].note = item.note || "";
         }
+        if (item.katalog && !state.db[i].katalog) state.db[i].katalog = item.katalog;
         return;
       }
     }
-    state.db.push({ id: "d" + hash4(k) + "-" + state.db.length + "-" + Date.now().toString(36),
-                    name: item.name, qty: item.qty || "", note: item.note || "" });
+    var neu = { id: "d" + hash4(k) + "-" + state.db.length + "-" + Date.now().toString(36),
+                name: item.name, qty: item.qty || "", note: item.note || "" };
+    /* Übungen aus dem Katalog: nur die Referenz (id) wandert in den Speicher, die
+       Katalogdaten selbst nie (architektur-empfehlung.md §4). */
+    if (item.katalog) neu.katalog = item.katalog;
+    state.db.push(neu);
   }
 
   function validPlan(p) {
@@ -285,11 +305,6 @@
       var d = s.days[k];
       if (!d || typeof d !== "object" || Array.isArray(d)) { delete s.days[k]; return; }
       if (!d.checks || typeof d.checks !== "object") d.checks = {};
-      if (!Array.isArray(d.pauses)) d.pauses = [];
-      d.pauses = d.pauses.filter(function (p) {
-        return Array.isArray(p) && typeof p[0] === "number" && p[0] > 0 &&
-               typeof p[1] === "number";
-      });
     });
     pruneDays(s);
     return s;
@@ -311,7 +326,7 @@
           if (!Array.isArray(arr) || !arr.length) return;
           var checks = {};
           arr.forEach(function (id) { checks[id] = 0; });   // ts 0 = Zeit unbekannt
-          s.days[k] = { start: 0, end: 0, checks: checks };
+          s.days[k] = { checks: checks };
         });
       }
       return s;
@@ -322,7 +337,7 @@
     var limit = dayKeyFromDate(new Date(Date.now() - KEEP_DAYS * DAY_MS));
     Object.keys(s.days).forEach(function (k) {
       var d = s.days[k];
-      var empty = !d.start && (!d.checks || !Object.keys(d.checks).length);
+      var empty = !d.checks || !Object.keys(d.checks).length;
       if (k < limit || empty) delete s.days[k];
     });
   }
@@ -414,87 +429,24 @@
     return day.locations.reduce(function (n, L) { return n + L.items.length; }, 0);
   }
 
-  /* ───────────────────────── Session (Haken + Zeiten) ───────────────────────── */
+  /* ───────────────────────── Session (Haken) ───────────────────────── */
 
+  /* Je Kalendertag nur die Haken: checks[uid] = Zeitpunkt des Abhakens (0 = nachgetragen).
+     Der Zeitpunkt dient allein der Reihenfolge im Kalender – Zeiten werden nicht gemessen.
+     Ältere Stände tragen noch start/end/pauses aus der früheren Workout-Uhr; die Felder
+     bleiben unangetastet liegen und werden nicht mehr gelesen. Tage, die nur eine
+     gestartete Uhr und keine Haken hatten, verwirft pruneDays als leer. */
   function sess(key) { return state.days[key] || null; }
 
   function sessWrite(key) {
-    if (!state.days[key]) state.days[key] = { start: 0, end: 0, checks: {}, pauses: [] };
+    if (!state.days[key]) state.days[key] = { checks: {} };
     if (!state.days[key].checks) state.days[key].checks = {};
-    if (!Array.isArray(state.days[key].pauses)) state.days[key].pauses = [];
     return state.days[key];
-  }
-
-  /* ── Pausen: [[Beginn, Ende], …]; Ende 0 = Pause läuft noch ── */
-
-  function pausesOf(d) {
-    if (!Array.isArray(d.pauses)) d.pauses = [];
-    return d.pauses;
-  }
-
-  function isPaused(d) {
-    if (!d || !d.start || d.end) return false;
-    var p = d.pauses;
-    return !!(p && p.length && p[p.length - 1][1] === 0);
-  }
-
-  /* Pausenzeit, die in das Fenster [a, b] fällt. Eine noch offene Pause
-     zählt bis b – so steht die Uhr während der Pause still. */
-  function pausedBetween(d, a, b) {
-    var p = d && d.pauses;
-    if (!p || !p.length || b <= a) return 0;
-    var sum = 0;
-    for (var i = 0; i < p.length; i++) {
-      var lo = Math.max(a, p[i][0]);
-      var hi = Math.min(b, p[i][1] || b);
-      if (hi > lo) sum += hi - lo;
-    }
-    return sum;
-  }
-
-  /* Uhr zurück in den Lauf-Zustand: offene Pause schließen und ein gesetztes
-     Ende aufheben. Die Zeit zwischen „Beenden" und dem Weitermachen zählt als
-     Pause, damit die Workout-Dauer ehrlich bleibt. */
-  function reopenClock(d, now) {
-    var p = pausesOf(d);
-    if (p.length && p[p.length - 1][1] === 0) p[p.length - 1][1] = now;
-    if (d.end) {
-      if (now > d.end) p.push([d.end, now]);
-      d.end = 0;
-    }
-  }
-
-  function pauseWorkout(key) {
-    var d = sessWrite(key);
-    if (!d.start || d.end || isPaused(d)) return;
-    pausesOf(d).push([Date.now(), 0]);
-    save();
-  }
-
-  function resumeWorkout(key) {
-    var d = sessWrite(key);
-    if (!d.start) return;
-    reopenClock(d, Date.now());
-    save();
-  }
-
-  /* Workout vorzeitig beenden: Zeit steht, der Tag bleibt wie er ist.
-     Läuft gerade eine Pause, endet das Workout an deren Beginn. */
-  function finishWorkout(key) {
-    var d = sessWrite(key);
-    if (!d.start || d.end) return;
-    if (isPaused(d)) {
-      d.end = d.pauses[d.pauses.length - 1][0];
-      d.pauses.pop();
-    } else {
-      d.end = Date.now();
-    }
-    save();
   }
 
   function sessClean(key) {
     var d = state.days[key];
-    if (d && !d.start && !Object.keys(d.checks).length) delete state.days[key];
+    if (d && !Object.keys(d.checks).length) delete state.days[key];
   }
 
   function isChecked(key, uid) {
@@ -505,15 +457,7 @@
   function setCheck(key, uid, on) {
     var d = sessWrite(key);
     if (on) {
-      var ts = Date.now();
-      /* Erster Haken startet die Workout-Uhr automatisch. Nur für den
-         laufenden Trainingstag – nachgetragene alte Tage bleiben ohne Zeit. */
-      if (!d.start && key === todayRef.key) d.start = ts;
-      d.checks[uid] = key === todayRef.key ? ts : 0;
-      /* Nur heute: weiter trainiert → Uhr läuft wieder (Pause schließen,
-         „Beenden" aufheben). Beim Nachtragen an vergangenen Tagen bleibt
-         deren gespeicherte Stoppzeit unangetastet. */
-      if (key === todayRef.key) reopenClock(d, ts);
+      d.checks[uid] = key === todayRef.key ? Date.now() : 0;
     } else {
       delete d.checks[uid];
     }
@@ -531,7 +475,7 @@
     return n;
   }
 
-  /* Haken des Tages in Abhak-Reihenfolge (nur solche mit echter Zeit). */
+  /* Haken des Tages in Abhak-Reihenfolge (nur solche mit Zeitpunkt). */
   function checksSorted(key) {
     var d = sess(key);
     if (!d) return [];
@@ -541,50 +485,6 @@
     });
     arr.sort(function (a, b) { return a.ts - b.ts; });
     return arr;
-  }
-
-  /* Zeit pro Übung = Abstand zum vorherigen Haken (bzw. zum Start),
-     abzüglich der Pausen, die dazwischen lagen. */
-  function splitMap(key) {
-    var d = sess(key);
-    var map = Object.create(null);
-    if (!d) return map;
-    var arr = checksSorted(key);
-    var prev = d.start > 0 ? d.start : 0;
-    arr.forEach(function (c) {
-      if (prev > 0 && c.ts >= prev) {
-        map[c.uid] = Math.max(0, c.ts - prev - pausedBetween(d, prev, c.ts));
-      }
-      prev = c.ts;
-    });
-    return map;
-  }
-
-  function workoutDuration(key, allDone) {
-    var d = sess(key);
-    if (!d || !d.start) return null;
-    var arr, endpoint;
-    if (d.end) {
-      endpoint = d.end;
-    } else if (allDone) {
-      arr = checksSorted(key);
-      endpoint = arr.length ? arr[arr.length - 1].ts : d.start;
-    } else if (key !== todayRef.key) {
-      /* Vergangener Tag ohne sauberes Ende: bis zum letzten Haken zählen. */
-      arr = checksSorted(key);
-      if (!arr.length) return null;
-      endpoint = arr[arr.length - 1].ts;
-    } else {
-      endpoint = Date.now();
-    }
-    return Math.max(0, endpoint - d.start - pausedBetween(d, d.start, endpoint));
-  }
-
-  function fmtDur(ms) {
-    var s = Math.floor(ms / 1000);
-    var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), r = s % 60;
-    if (h) return h + ":" + pad2(m) + ":" + pad2(r);
-    return m + ":" + pad2(r);
   }
 
   /* ───────────────────────── DOM-Helfer ───────────────────────── */
@@ -899,6 +799,8 @@
       el.main.appendChild(wrap);
     }
 
+    if (installHintWanted()) el.main.appendChild(buildInstallCard());
+
     if (!total && !editing) {
       renderRest(day);
       el.main.appendChild(buildFooter(0));
@@ -926,13 +828,11 @@
     }
 
     el.main.appendChild(buildFooter(total));
-    updateSplits();
-    updateTimer();
     updateJump();
     revealSafety();
   }
 
-  /* ── Hero: Fortschrittsring, Orte, Workout-Uhr ── */
+  /* ── Hero: Fortschrittsring und Orte ── */
 
   function buildHero(day, key) {
     var total = dayTotal(day);
@@ -970,83 +870,8 @@
       chips.appendChild(c);
     });
     info.appendChild(chips);
-
-    info.appendChild(buildTimerLine(key, total, done));
     card.appendChild(info);
     return card;
-  }
-
-  function buildTimerLine(key, total, done) {
-    var line = h("div", "hero-timer");
-    line.id = "timer-line";
-
-    var d = sess(key);
-    var started = !!(d && d.start);
-    var allDone = total > 0 && done === total;
-
-    if (!started && isToday()) {
-      var b = h("button", "tmr-start");
-      b.type = "button";
-      b.appendChild(h("span", "tri"));
-      b.appendChild(document.createTextNode("Workout starten"));
-      b.addEventListener("click", function () {
-        sessWrite(key).start = Date.now();
-        save();
-        rebuildTimerLine();
-        updateTimer();
-      });
-      line.appendChild(b);
-    } else if (started) {
-      var dur = workoutDuration(key, allDone);
-      /* Vergangene Tage ohne verwertbare Dauer: keine Uhr anzeigen. */
-      if (dur == null && !isToday()) return line;
-      var paused = isPaused(d);
-      var ended = !!d.end;
-      var running = !allDone && !ended && !paused && isToday();
-      var chip = h("div", "tmr-chip" +
-        (running ? " run" : (paused && isToday() && !allDone ? " paused" : " fin")));
-      chip.appendChild(h("i", "tmr-dot"));
-      var val = h("b", "tmr-val", dur == null ? "–" : fmtDur(dur));
-      val.id = "tmr-val";
-      chip.appendChild(val);
-      chip.appendChild(h("span", "tmr-lbl",
-        allDone ? "Workout-Dauer"
-                : (ended ? "beendet"
-                : (paused ? "Pause" : (running ? "läuft" : "Workout")))));
-      line.appendChild(chip);
-
-      function tmrBtn(cls, label, fn) {
-        var b = h("button", cls, label);
-        b.type = "button";
-        b.addEventListener("click", function () {
-          fn(key);
-          rebuildTimerLine();
-          updateTimer();
-        });
-        line.appendChild(b);
-      }
-
-      if (isToday() && !allDone) {
-        if (running) {
-          tmrBtn("tmr-stop", "Pause", pauseWorkout);
-          tmrBtn("tmr-finish", "Beenden", finishWorkout);
-        } else if (paused) {
-          tmrBtn("tmr-resume", "▶ Fortsetzen", resumeWorkout);
-          tmrBtn("tmr-finish", "Beenden", finishWorkout);
-        } else if (ended) {
-          tmrBtn("tmr-resume", "▶ Fortsetzen", resumeWorkout);
-        }
-      }
-    }
-    return line;
-  }
-
-  function rebuildTimerLine() {
-    var old = document.getElementById("timer-line");
-    if (!old) return;
-    var day = getDay(view.week, view.dayIndex);
-    var key = viewKey();
-    old.replaceWith(buildTimerLine(key, dayTotal(day), countDone(view.week, view.dayIndex)));
   }
 
   /* ── Sektion je Trainingsort ── */
@@ -1111,6 +936,7 @@
     dot.appendChild(h("span", "num", String(i + 1)));
     dot.appendChild(svgCheck("check"));
     dot.appendChild(h("span", "ping"));
+    if (!editing && katalogIdVon(it.name)) dot.appendChild(h("span", "dot-info", "i"));
     row.appendChild(dot);
 
     var mainBox = h("span", "rmain");
@@ -1125,8 +951,18 @@
     row.appendChild(mainBox);
 
     var side = h("span", "rside");
-    side.appendChild(h("span", "split"));
     if (editing) {
+      [[-1, "mv mv-up", "nach oben"], [1, "mv mv-down", "nach unten"]].forEach(function (m) {
+        var mv = h("button", m[1]);
+        mv.type = "button";
+        mv.setAttribute("aria-label", it.name + " " + m[2]);
+        mv.disabled = m[0] < 0 ? i === 0 : i === L.items.length - 1;
+        mv.addEventListener("click", function (e) {
+          e.stopPropagation();
+          itemVerschieben(li, it.uid, m[0]);
+        });
+        side.appendChild(mv);
+      });
       var del = h("button", "rm");
       del.type = "button";
       del.setAttribute("aria-label", it.name + " aus dem Plan entfernen");
@@ -1158,6 +994,22 @@
     attachTap(row, function () { if (!editing) toggle(row, key); });
     lItem.appendChild(row);
     reveal(row, ri);
+
+    /* Liegt eine Anleitung vor, öffnet der Kreis ganz links das Detailfenster; der Rest
+       der Zeile hakt ab. Der Knopf liegt bewusst NEBEN der Zeile über dem Kreis, nicht
+       darin: role=checkbox legt Kinder für VoiceOver flach, und attachTap würde
+       Enter/Leertaste als Haken werten. */
+    var katId = katalogIdVon(it.name);
+    if (katId && !editing) {
+      lItem.classList.add("mit-anleitung");
+      var anleitung = h("button", "anleitung-tipp");
+      anleitung.type = "button";
+      anleitung.setAttribute("aria-label", it.name + ": Anleitung und Animation");
+      anleitung.addEventListener("click", function () {
+        openDetail(katId, { quelle: "plan", w: view.week, di: view.dayIndex, loc: L.location, uid: it.uid });
+      });
+      lItem.insertBefore(anleitung, row);         // vor der Zeile: Tab-Reihenfolge links → rechts
+    }
     return lItem;
   }
 
@@ -1239,9 +1091,7 @@
   function buildComplete(total) {
     var card = h("div", "day-complete");
     card.appendChild(h("b", null, "Tag komplett"));
-    var dur = workoutDuration(viewKey(), true);
-    card.appendChild(h("span", null,
-      total + " Übungen" + (dur != null && dur > 0 ? " · " + fmtDur(dur) : "")));
+    card.appendChild(h("span", null, total + " Übungen"));
     return card;
   }
 
@@ -1346,7 +1196,6 @@
       if (navigator.vibrate) { try { navigator.vibrate(10); } catch (e) {} }
     }
 
-    rebuildTimerLine();
     refreshProgress(row.dataset.loc);
   }
 
@@ -1398,8 +1247,6 @@
     }
 
     renderDayProgress();
-    updateSplits();
-    updateTimer();
 
     var foot = el.main.querySelector(".dayfoot");
     var card = foot ? foot.querySelector(".day-complete") : null;
@@ -1423,73 +1270,6 @@
     updateJump();
   }
 
-  /* Zeit-pro-Übung-Chips an allen Zeilen nachführen. Ein Haken mittendrin
-     verändert auch den Abstand der nachfolgenden Übung, deshalb immer alle. */
-  function updateSplits() {
-    var key = viewKey();
-    var map = splitMap(key);
-    var rows = el.main.querySelectorAll(".row");
-    Array.prototype.forEach.call(rows, function (row) {
-      var chip = row.querySelector(".split");
-      if (!chip) return;
-      var ms = map[row.dataset.uid];
-      if (row.classList.contains("done") && ms != null && ms >= 1000) {
-        chip.textContent = fmtDur(ms);
-        chip.classList.add("on");
-      } else {
-        chip.textContent = "";
-        chip.classList.remove("on");
-      }
-    });
-  }
-
-  /* ───────────────────────── Workout-Uhr ───────────────────────── */
-
-  var tickTimer = null;
-
-  /* Uhr „aktiv" = heute gestartet, nicht beendet, Tag nicht fertig.
-     Aktiv + pausiert → Uhr sichtbar, aber sie steht. */
-  function timerActive() {
-    var d = sess(todayRef.key);
-    if (!d || !d.start || d.end) return false;
-    var day = getDay(todayRef.week, todayRef.dayIndex);
-    var total = dayTotal(day);
-    if (!total) return false;                   // Tag inzwischen leer editiert
-    return countDone(todayRef.week, todayRef.dayIndex) !== total;
-  }
-
-  function updateTimer() {
-    var d = sess(todayRef.key);
-    var active = timerActive();
-    var running = active && !isPaused(d);
-
-    /* Kopfzeile: Mini-Uhr, sobald heute ein Workout läuft (steht bei Pause). */
-    if (active && d) {
-      el.hdrTimer.textContent = fmtDur(workoutDuration(todayRef.key, false) || 0);
-      el.hdrTimer.classList.toggle("paused", !running);
-      el.hdrTimer.hidden = false;
-    } else {
-      el.hdrTimer.hidden = true;
-      el.hdrTimer.classList.remove("paused");
-    }
-
-    /* Hero-Uhr des angezeigten Tages. */
-    var val = document.getElementById("tmr-val");
-    if (val && isToday() && active) {
-      var day = getDay(view.week, view.dayIndex);
-      var total = dayTotal(day);
-      var allDone = total > 0 && countDone(view.week, view.dayIndex) === total;
-      if (!allDone) val.textContent = fmtDur(workoutDuration(todayRef.key, false) || 0);
-    }
-
-    if (running && !tickTimer) {
-      tickTimer = setInterval(updateTimer, 1000);
-    } else if (!running && tickTimer) {
-      clearInterval(tickTimer);
-      tickTimer = null;
-    }
-  }
-
   /* ───────────────────────── Plan bearbeiten ───────────────────────── */
 
   function removeItem(row, li, uid) {
@@ -1511,6 +1291,22 @@
     if (REDUCED) { render(); return; }
     row.classList.add("removing");
     setTimeout(render, 220);
+  }
+
+  /* Reihenfolge innerhalb eines Trainingsorts ändern. Haken hängen an der uid und
+     wandern deshalb mit. */
+  function itemVerschieben(li, uid, richtung) {
+    var L = getDay(view.week, view.dayIndex).locations[li];
+    if (!L) return;
+    var idx = -1;
+    L.items.forEach(function (it, i) { if (it.uid === uid) idx = i; });
+    var ziel = idx + richtung;
+    if (idx < 0 || ziel < 0 || ziel >= L.items.length) return;
+    var tmp = L.items[idx];
+    L.items[idx] = L.items[ziel];
+    L.items[ziel] = tmp;
+    save();
+    render();
   }
 
   /* ── Sheet: Übung hinzufügen (aus Datenbank oder neu) ── */
@@ -1543,15 +1339,13 @@
 
     var q = query.trim().toLowerCase();
     var shown = 0;
-    state.db.slice().sort(function (a, b) {
-      return a.name.localeCompare(b.name, "de");
-    }).forEach(function (entry) {
-      if (q && entry.name.toLowerCase().indexOf(q) < 0) return;
+    archivEintraege().forEach(function (entry) {
+      if (q && !archivSuchtreffer(entry, q)) return;
       shown++;
       var row = h("div", "db-row");
       var mainBox = h("div", "db-main");
       mainBox.appendChild(h("b", null, entry.name));
-      var sub = [entry.qty, entry.note].filter(Boolean).join(" · ");
+      var sub = archivUntertitel(entry);
       if (sub) mainBox.appendChild(h("span", null, sub));
       row.appendChild(mainBox);
 
@@ -1563,8 +1357,11 @@
         b.type = "button";
         b.setAttribute("aria-label", entry.name + " hinzufügen");
         b.addEventListener("click", function () {
-          addItemToCtx({ name: entry.name, qty: entry.qty, note: entry.note });
-          buildAddList(el.addSearch.value);
+          b.disabled = true;
+          mengeFuer(entry).then(function (m) {
+            addItemToCtx({ name: entry.name, qty: m.qty, note: m.note, katalog: entry.katalogId });
+            buildAddList(el.addSearch.value);
+          });
         });
         row.appendChild(b);
       }
@@ -1587,15 +1384,302 @@
       note: (fields.note || "").trim()
     };
     L.items.push(item);
-    upsertDb(item, false);
+    upsertDb({ name: item.name, qty: item.qty, note: item.note, katalog: fields.katalog }, false);
     save();
     render();                                    // Liste hinter dem Sheet aktualisieren
   }
 
-  /* ── Sheet: Übungsdatenbank ── */
+  /* ───────────────────────── Übungskatalog ───────────────────────── */
+
+  /* Der Katalog liegt NICHT im localStorage. Index und Geräte kommen beim Start aus
+     daten/ (offline aus dem Service-Worker-Cache), der vollständige Datensatz einer
+     Übung erst beim Öffnen des Detailfensters. Im Zustand steht nur die Referenz
+     state.db[].katalog. Übungen und Plan sind über den Namen verknüpft (dbKey). */
+  var KAT_LABEL = { technik: "Technik", footwork: "Footwork", koordination: "Koordination",
+    kraft: "Kraft", explosivitaet: "Explosivität", kondition: "Kondition",
+    rumpf_nacken: "Rumpf & Nacken", mobilitaet: "Mobilität" };
+  var LEVEL_LABEL = { anfaenger: "Anfänger", fortgeschritten: "Fortgeschritten", experte: "Experte" };
+  var DISZ_LABEL = { boxen: "Boxen", kickboxen: "Kickboxen", "muay-thai": "Muay Thai", kraftsport: "Kraftsport" };
+  var PLATTFORM_LABEL = { web: "Web", wissenschaft: "Wissenschaft", verband: "Verband" };
+
+  var katalog = { index: [], nachId: {}, nachName: {}, geraete: {}, trainingsort: null, details: {} };
+  var archivFilter = { kategorie: "", disziplin: "", level: "", geraet: "" };
+  var archivZielOffen = null;   // Name der Archivzeile mit offener Zielauswahl
+
+  function labelVon(tabelle, wert) { return tabelle[wert] || wert; }
+
+  /* „clinch-kraft" → „Clinch-Kraft" */
+  function zielLabel(z) {
+    return String(z).replace(/_/g, " ").replace(/(^|[\s-])(\S)/g, function (m, a, b) { return a + b.toUpperCase(); });
+  }
+
+  function jsonHolen(url) {
+    return fetch(url).then(function (res) {
+      if (!res.ok) throw new Error(url + " (" + res.status + ")");
+      return res.json();
+    });
+  }
+
+  function katalogLaden() {
+    if (typeof fetch !== "function") return;
+    Promise.all([jsonHolen("daten/uebungen-index.json"), jsonHolen("daten/equipment.json")])
+      .then(function (r) {
+        katalog.index = Array.isArray(r[0]) ? r[0] : [];
+        katalog.nachId = {};
+        katalog.nachName = {};
+        katalog.index.forEach(function (e) {
+          katalog.nachId[e.id] = e;
+          katalog.nachName[dbKey(e.name)] = e.id;
+        });
+        ((r[1] && r[1].geraete) || []).forEach(function (g) { katalog.geraete[g.id] = g; });
+        var ort = r[1] && r[1].meta && r[1].meta.trainingsort;
+        katalog.trainingsort = LOCATIONS.indexOf(ort) >= 0 ? ort : null;
+        archivFilterFuellen();
+        if (planHatKatalog()) render();            // ⓘ an Planzeilen nachtragen
+        if (!el.sheetDb.hidden) buildDbList(el.dbSearch.value);
+        if (!el.sheetAdd.hidden) buildAddList(el.addSearch.value);
+      })
+      .catch(function () { /* ohne Katalog läuft die App wie bisher */ });
+  }
+
+  function katalogDetail(id) {
+    if (katalog.details[id]) return Promise.resolve(katalog.details[id]);
+    return jsonHolen("daten/uebungen/" + id + ".json").then(function (u) {
+      katalog.details[id] = u;
+      return u;
+    });
+  }
+
+  /* Katalog-id zu einem Übungsnamen: erst über die gespeicherte Referenz, dann über den Namen. */
+  function katalogIdVon(name) {
+    var k = dbKey(name || "");
+    for (var i = 0; i < state.db.length; i++) {
+      var e = state.db[i];
+      if (e.katalog && katalog.nachId[e.katalog] && dbKey(e.name) === k) return e.katalog;
+    }
+    return katalog.nachName[k] || null;
+  }
+
+  function planHatKatalog() {
+    var gefunden = false;
+    state.plan.weeks.forEach(function (w) {
+      w.days.forEach(function (d) {
+        d.locations.forEach(function (L) {
+          L.items.forEach(function (it) { if (!gefunden && katalogIdVon(it.name)) gefunden = true; });
+        });
+      });
+    });
+    return gefunden;
+  }
+
+  /* Archiv = Katalogübungen plus alles, was je im Plan stand (state.db), ohne Doppel. */
+  function archivEintraege() {
+    var dbNachName = Object.create(null), dbNachKatalog = Object.create(null), liste = [];
+    state.db.forEach(function (e) {
+      dbNachName[dbKey(e.name)] = e;
+      if (e.katalog) dbNachKatalog[e.katalog] = e;
+    });
+    var belegt = Object.create(null);
+    katalog.index.forEach(function (k) {
+      var db = dbNachKatalog[k.id] || dbNachName[dbKey(k.name)] || null;
+      if (db) belegt[dbKey(db.name)] = true;
+      liste.push({ name: db ? db.name : k.name, katalogId: k.id, index: k, db: db });
+    });
+    state.db.forEach(function (e) {
+      if (!belegt[dbKey(e.name)]) liste.push({ name: e.name, katalogId: null, index: null, db: e });
+    });
+    /* Katalog zuerst (das ist der Vorrat aus dem Import), dann die eigenen Einträge. */
+    return liste.sort(function (a, b) {
+      if (!!a.katalogId !== !!b.katalogId) return a.katalogId ? -1 : 1;
+      return a.name.localeCompare(b.name, "de");
+    });
+  }
+
+  function archivSuchtreffer(entry, q) {
+    if (entry.name.toLowerCase().indexOf(q) >= 0) return true;
+    if (entry.index) {
+      return (entry.index.ziel || []).some(function (z) {
+        return String(z).toLowerCase().indexOf(q) >= 0 || zielLabel(z).toLowerCase().indexOf(q) >= 0;
+      });
+    }
+    return !!entry.db && [entry.db.qty, entry.db.note].join(" ").toLowerCase().indexOf(q) >= 0;
+  }
+
+  function archivFilterAktiv() {
+    return !!(archivFilter.kategorie || archivFilter.disziplin || archivFilter.level || archivFilter.geraet);
+  }
+
+  function archivPasst(entry, q) {
+    if (archivFilterAktiv()) {
+      var k = entry.index;
+      if (!k) return false;                      // eigene Einträge haben keine Kategorien
+      if (archivFilter.kategorie && k.kategorie !== archivFilter.kategorie) return false;
+      if (archivFilter.level && k.level !== archivFilter.level) return false;
+      if (archivFilter.disziplin && (k.disziplin || []).indexOf(archivFilter.disziplin) < 0) return false;
+      if (archivFilter.geraet && (k.equipment || []).indexOf(archivFilter.geraet) < 0) return false;
+    }
+    return !q || archivSuchtreffer(entry, q);
+  }
+
+  function archivUntertitel(entry) {
+    if (entry.index) {
+      return [labelVon(KAT_LABEL, entry.index.kategorie), labelVon(LEVEL_LABEL, entry.index.level)]
+        .concat(entry.db ? [entry.db.qty] : []).filter(Boolean).join(" · ");
+    }
+    return [entry.db.qty, entry.db.note].filter(Boolean).join(" · ");
+  }
+
+  function archivFilterFuellen() {
+    if (!el.archFilter) return;
+    function fuellen(select, werte, label, leer) {
+      var aktuell = select.value;
+      select.textContent = "";
+      var o = h("option", null, leer);
+      o.value = "";
+      select.appendChild(o);
+      werte.forEach(function (w) {
+        var opt = h("option", null, label(w));
+        opt.value = w;
+        select.appendChild(opt);
+      });
+      select.value = werte.indexOf(aktuell) >= 0 ? aktuell : "";
+    }
+    function sammeln(feld) {
+      var s = Object.create(null);
+      katalog.index.forEach(function (k) { [].concat(k[feld] || []).forEach(function (w) { s[w] = true; }); });
+      return Object.keys(s);
+    }
+    var nachLabel = function (tab) { return function (a, b) { return labelVon(tab, a).localeCompare(labelVon(tab, b), "de"); }; };
+    fuellen(el.fKategorie, sammeln("kategorie").sort(nachLabel(KAT_LABEL)), function (w) { return labelVon(KAT_LABEL, w); }, "Alle Kategorien");
+    fuellen(el.fDisziplin, sammeln("disziplin").sort(nachLabel(DISZ_LABEL)), function (w) { return labelVon(DISZ_LABEL, w); }, "Alle Disziplinen");
+    fuellen(el.fLevel, ["anfaenger", "fortgeschritten", "experte"].filter(function (w) {
+      return sammeln("level").indexOf(w) >= 0;
+    }), function (w) { return labelVon(LEVEL_LABEL, w); }, "Alle Level");
+    var geraeteName = function (id) { return katalog.geraete[id] ? katalog.geraete[id].name : id; };
+    fuellen(el.fGeraet, sammeln("equipment").sort(function (a, b) {
+      return geraeteName(a).localeCompare(geraeteName(b), "de");
+    }), geraeteName, "Alle Geräte");
+    el.archFilter.hidden = !katalog.index.length;
+  }
+
+  /* Menge und Anweisung für den Plan: gespeicherte Werte, sonst aus der Empfehlung. */
+  function mengeFuer(entry) {
+    if (entry.db && (entry.db.qty || entry.db.note)) {
+      return Promise.resolve({ qty: entry.db.qty, note: entry.db.note });
+    }
+    if (!entry.katalogId) return Promise.resolve({ qty: "", note: "" });
+    return katalogDetail(entry.katalogId).then(function (u) {
+      var e = u.empfehlung || {};
+      return {
+        qty: [e.saetze ? e.saetze + " x" : "", e.umfang || ""].join(" ").trim(),
+        note: e.pause ? "Pause " + e.pause : ""
+      };
+    }).catch(function () { return { qty: "", note: "" }; });
+  }
+
+  function zielText(w, di, loc) {
+    return DAY_SHORT[di] + (weekCount() > 1 ? " · W" + w : "") + " · " + LOC_LABEL[loc];
+  }
+
+  /* Archiv → Plan: an einen Tag und Ort des Zyklus anhängen. Fehlt der Ort an dem
+     Tag, wird er angelegt (wie „Trainingsort hinzufügen"). */
+  function inPlanUebernehmen(entry, w, di, loc) {
+    return mengeFuer(entry).then(function (m) {
+      var day = getDay(w, di), L = null;
+      day.locations.forEach(function (x) { if (x.location === loc) L = x; });
+      if (!L) {
+        L = { location: loc, items: [] };
+        day.locations.push(L);
+        day.locations.sort(function (a, b) { return LOCATIONS.indexOf(a.location) - LOCATIONS.indexOf(b.location); });
+      }
+      var item = { uid: newUid(), name: entry.name, qty: m.qty, note: m.note };
+      L.items.push(item);
+      upsertDb({ name: item.name, qty: item.qty, note: item.note, katalog: entry.katalogId }, false);
+      save();
+      render();
+      showToast("info", entry.name + " → " + zielText(w, di, loc));
+      return item;
+    });
+  }
+
+  /* Plan → Archiv: die Übung verlässt den Plan und bleibt im Archiv (state.db). */
+  function ausPlanEntfernen(w, di, loc, uid) {
+    var day = getDay(w, di), entfernt = null;
+    day.locations.forEach(function (L) {
+      if (L.location !== loc) return;
+      L.items = L.items.filter(function (it) {
+        if (it.uid !== uid) return true;
+        entfernt = it;
+        return false;
+      });
+    });
+    if (!entfernt) return null;
+    upsertDb(entfernt, !(planUsage()[dbKey(entfernt.name)] > 0));
+    save();
+    render();
+    showToast("info", entfernt.name + " → zurück im Archiv");
+    return entfernt;
+  }
+
+  /* Zielauswahl Tag/Ort – dieselbe Bauweise im Archiv und im Detailfenster. */
+  function planZielAuswahl(entry, fertig) {
+    var wahl = { w: view.week, di: view.dayIndex, loc: null };
+    var box = h("div", "plan-ziel");
+
+    function ortVorschlag() {
+      var day = getDay(wahl.w, wahl.di);
+      if (katalog.trainingsort) return katalog.trainingsort;
+      return day.locations.length ? day.locations[0].location : LOCATIONS[0];
+    }
+    wahl.loc = ortVorschlag();
+
+    function chipReihe(titel, werte, aktiv, setzen) {
+      var reihe = h("div", "pz-reihe");
+      reihe.appendChild(h("span", "pz-titel", titel));
+      var chips = h("div", "pz-chips");
+      werte.forEach(function (v) {
+        var b = h("button", "pz-chip" + (v.wert === aktiv ? " on" : ""), v.text);
+        b.type = "button";
+        b.setAttribute("aria-pressed", v.wert === aktiv ? "true" : "false");
+        if (v.farbe) b.style.setProperty("--c", v.farbe);
+        b.addEventListener("click", function () { setzen(v.wert); zeichnen(); });
+        chips.appendChild(b);
+      });
+      reihe.appendChild(chips);
+      return reihe;
+    }
+
+    function zeichnen() {
+      box.textContent = "";
+      if (weekCount() > 1) {
+        box.appendChild(chipReihe("Woche", state.plan.weeks.map(function (wk, i) {
+          return { wert: i + 1, text: "W" + (i + 1) };
+        }), wahl.w, function (v) { wahl.w = v; }));
+      }
+      box.appendChild(chipReihe("Tag", DAY_SHORT.map(function (d, i) { return { wert: i, text: d }; }),
+        wahl.di, function (v) { wahl.di = v; }));
+      box.appendChild(chipReihe("Ort", LOCATIONS.map(function (l) {
+        return { wert: l, text: LOC_LABEL[l], farbe: locColor(l) };
+      }), wahl.loc, function (v) { wahl.loc = v; }));
+      var ok = h("button", "save-btn pz-ok", "In den Plan → " + zielText(wahl.w, wahl.di, wahl.loc));
+      ok.type = "button";
+      ok.addEventListener("click", function () {
+        ok.disabled = true;
+        inPlanUebernehmen(entry, wahl.w, wahl.di, wahl.loc).then(function (item) {
+          if (fertig) fertig(item, wahl);
+        });
+      });
+      box.appendChild(ok);
+    }
+    zeichnen();
+    return box;
+  }
+
+  /* ── Sheet: Archiv (bisher Übungsdatenbank) ── */
 
   function openDb() {
     el.dbSearch.value = "";
+    archivZielOffen = null;
     buildDbList("");
     openSheet(el.sheetDb);
   }
@@ -1615,44 +1699,344 @@
     return usage;
   }
 
+  /* Nur Text, keine Animationen in der Liste (Akku). */
   function buildDbList(query) {
     el.dbList.textContent = "";
     var q = query.trim().toLowerCase();
     var usage = planUsage();
-    var shown = 0;
+    var alle = archivEintraege(), shown = 0, imPlan = 0, katalogZahl = 0, gruppe = null;
 
-    state.db.slice().sort(function (a, b) {
-      return a.name.localeCompare(b.name, "de");
-    }).forEach(function (entry) {
-      if (q && entry.name.toLowerCase().indexOf(q) < 0) return;
+    alle.forEach(function (entry) {
+      var n = usage[dbKey(entry.name)] || 0;
+      if (n) imPlan++;
+      if (entry.katalogId) katalogZahl++;
+      if (!archivPasst(entry, q)) return;
       shown++;
-      var row = h("div", "db-row");
-      var mainBox = h("div", "db-main");
-      mainBox.appendChild(h("b", null, entry.name));
-      var bits = [entry.qty, entry.note].filter(Boolean).join(" · ");
-      if (bits) mainBox.appendChild(h("span", null, bits));
+      var neueGruppe = entry.katalogId ? "Übungskatalog" : "Eigene Übungen";
+      if (neueGruppe !== gruppe) {
+        gruppe = neueGruppe;
+        el.dbList.appendChild(h("h3", "arch-gruppe", gruppe));
+      }
+
+      var wrap = h("div", "arch-eintrag");
+      var row = h("div", "db-row" + (entry.katalogId ? " kat" : ""));
+      var mainBox;
+      if (entry.katalogId) {
+        mainBox = h("button", "db-main db-open");
+        mainBox.type = "button";
+        mainBox.setAttribute("aria-label", entry.name + ": Anleitung und Animation öffnen");
+        mainBox.addEventListener("click", function () { openDetail(entry.katalogId, { quelle: "archiv" }); });
+      } else {
+        mainBox = h("div", "db-main");
+      }
+      var titel = h("b", null, entry.name);
+      if (entry.index && entry.index.hat_risikohinweis) {
+        var r = h("i", "db-risiko", "!");
+        r.setAttribute("title", "mit Risikohinweis");
+        r.setAttribute("aria-label", "mit Risikohinweis");
+        titel.appendChild(r);
+      }
+      mainBox.appendChild(titel);
+      var sub = archivUntertitel(entry);
+      if (sub) mainBox.appendChild(h("span", null, sub));
       row.appendChild(mainBox);
 
-      var n = usage[dbKey(entry.name)] || 0;
-      row.appendChild(h("span", "db-tag" + (n ? " used" : ""),
-        n ? n + "× im Plan" : "nicht im Plan"));
+      row.appendChild(h("span", "db-tag" + (n ? " used" : ""), n ? (n === 1 ? "im Plan" : n + "× im Plan") : "nicht im Plan"));
 
-      var del = h("button", "db-del", "✕");
-      del.type = "button";
-      del.setAttribute("aria-label", entry.name + " endgültig löschen");
-      armButton(del, "✕", "löschen?", function () {
-        state.db = state.db.filter(function (e2) { return e2 !== entry; });
-        save();
+      var add = h("button", "db-add" + (archivZielOffen === entry.name ? " open" : ""), "+");
+      add.type = "button";
+      add.setAttribute("aria-label", entry.name + " in den Plan übernehmen");
+      add.setAttribute("aria-expanded", archivZielOffen === entry.name ? "true" : "false");
+      add.addEventListener("click", function () {
+        archivZielOffen = archivZielOffen === entry.name ? null : entry.name;
         buildDbList(el.dbSearch.value);
       });
-      row.appendChild(del);
-      el.dbList.appendChild(row);
+      row.appendChild(add);
+
+      if (!entry.katalogId) {
+        var del = h("button", "db-del", "✕");
+        del.type = "button";
+        del.setAttribute("aria-label", entry.name + " endgültig löschen");
+        armButton(del, "✕", "löschen?", function () {
+          state.db = state.db.filter(function (e2) { return e2 !== entry.db; });
+          save();
+          buildDbList(el.dbSearch.value);
+        });
+        row.appendChild(del);
+      }
+      wrap.appendChild(row);
+
+      if (archivZielOffen === entry.name) {
+        wrap.appendChild(planZielAuswahl(entry, function () {
+          archivZielOffen = null;
+          buildDbList(el.dbSearch.value);
+        }));
+      }
+      el.dbList.appendChild(wrap);
     });
 
-    el.dbCount.textContent = state.db.length + " Übung" + (state.db.length === 1 ? "" : "en") +
-      " · alles, was je im Plan stand";
+    el.dbCount.textContent = katalogZahl + " Katalogübung" + (katalogZahl === 1 ? "" : "en") +
+      " · " + (alle.length - katalogZahl) + " eigene · " + imPlan + " im Plan";
+    if (el.archReset) el.archReset.hidden = !(archivFilterAktiv() || q);
     if (!shown) el.dbList.appendChild(h("p", "db-empty", "Keine Übung gefunden."));
   }
+
+  /* ── Sheet: Detailfenster einer Übung ──
+     Eine Komponente, ein Aufrufpfad – aus dem Archiv und aus dem Plan identisch.
+     kontext: { quelle: "archiv" } oder { quelle: "plan", w, di, loc, uid } */
+
+  var detail = { id: null, kontext: null, steuerung: null, token: 0, uebung: null };
+
+  function detailSchliessen() {
+    detail.token++;
+    if (detail.steuerung) detail.steuerung.zerstoere();
+    detail.steuerung = null;
+    detail.id = null;
+    detail.uebung = null;
+    detail.kontext = null;
+    el.detBody.textContent = "";
+  }
+
+  function openDetail(id, kontext) {
+    if (!el.sheetDetail || !window.ZyklusAnimation) return;
+    if (detail.steuerung) detail.steuerung.zerstoere();
+    detail.steuerung = null;
+    var token = ++detail.token;
+    detail.id = id;
+    detail.kontext = kontext || { quelle: "archiv" };
+    var k = katalog.nachId[id];
+    el.detName.textContent = k ? k.name : "Übung";
+    el.detBody.textContent = "";
+    el.detBody.appendChild(h("p", "det-laden", "Übung wird geladen …"));
+    openSheet(el.sheetDetail);
+    katalogDetail(id).then(function (u) {
+      if (token !== detail.token) return;        // inzwischen geschlossen oder gewechselt
+      detail.uebung = u;
+      detailAufbauen(u);
+    }).catch(function () {
+      if (token !== detail.token) return;
+      el.detBody.textContent = "";
+      el.detBody.appendChild(h("p", "det-laden",
+        "Diese Übung liegt noch nicht auf dem Gerät. Einmal mit Internet öffnen, dann ist sie offline da."));
+    });
+  }
+
+  function detailAufbauen(u) {
+    var body = el.detBody;
+    body.textContent = "";
+    el.detName.textContent = u.name;
+
+    var kopf = h("div", "det-kopf");
+    kopf.appendChild(h("p", "det-meta", [labelVon(KAT_LABEL, u.kategorie), labelVon(LEVEL_LABEL, u.level),
+      (u.disziplin || []).map(function (d) { return labelVon(DISZ_LABEL, d); }).join(", ")].filter(Boolean).join(" · ")));
+    if (u.ziel && u.ziel.length) {
+      var ziele = h("div", "det-ziele");
+      u.ziel.forEach(function (z) { ziele.appendChild(h("span", "det-ziel", zielLabel(z))); });
+      kopf.appendChild(ziele);
+    }
+    kopf.appendChild(detailAktion(u));
+    body.appendChild(kopf);
+
+    var raster = h("div", "det-raster");
+
+    /* Links: Animation, Steuerung, Phase */
+    var links = h("div", "det-links");
+    var buehne = h("div", "det-buehne");
+    var canvas = h("canvas", "det-canvas");
+    canvas.setAttribute("role", "img");
+    canvas.setAttribute("aria-label", "Animation: " + u.name);
+    buehne.appendChild(canvas);
+    links.appendChild(buehne);
+
+    var steuer = h("div", "det-steuer");
+    var zurueck = h("button", "det-btn", "‹");
+    zurueck.type = "button";
+    zurueck.setAttribute("aria-label", "Vorige Phase");
+    var spiel = h("button", "det-btn det-play");
+    spiel.type = "button";
+    var vor = h("button", "det-btn", "›");
+    vor.type = "button";
+    vor.setAttribute("aria-label", "Nächste Phase");
+    var leiste = h("input", "det-leiste");
+    leiste.type = "range";
+    leiste.min = "0";
+    leiste.max = "1000";
+    leiste.step = "1";
+    leiste.value = "0";
+    leiste.setAttribute("aria-label", "Fortschritt");
+    steuer.appendChild(zurueck);
+    steuer.appendChild(spiel);
+    steuer.appendChild(vor);
+    steuer.appendChild(leiste);
+    links.appendChild(steuer);
+
+    var seite = h("p", "det-seite");
+    seite.hidden = !u.animation.seitenwechsel;
+    links.appendChild(seite);
+    var phase = h("div", "det-phase");
+    var phaseName = h("b");
+    var phaseHinweis = h("p");
+    phase.appendChild(phaseName);
+    phase.appendChild(phaseHinweis);
+    links.appendChild(phase);
+    raster.appendChild(links);
+
+    /* Rechts: Risikohinweis zuerst, dann Anleitung, Achte auf, Fehler, Empfehlung, Geräte, Quellen */
+    var rechts = h("div", "det-rechts");
+    if (u.risikohinweis) {
+      var risiko = h("div", "det-risiko");
+      risiko.setAttribute("role", "note");
+      risiko.appendChild(h("b", null, "Risikohinweis"));
+      risiko.appendChild(h("p", null, u.risikohinweis));
+      rechts.appendChild(risiko);
+    }
+    function abschnitt(titel, cls) {
+      var sec = h("section", "det-abschnitt" + (cls ? " " + cls : ""));
+      sec.appendChild(h("h3", null, titel));
+      rechts.appendChild(sec);
+      return sec;
+    }
+    function liste(sec, eintraege) {
+      var ul = h("ul");
+      (eintraege || []).forEach(function (t) { ul.appendChild(h("li", null, t)); });
+      sec.appendChild(ul);
+    }
+    abschnitt("Anleitung").appendChild(h("p", null, u.anleitung || ""));
+    liste(abschnitt("Achte auf"), u.achte_auf);
+    liste(abschnitt("Häufige Fehler", "det-fehler"), u.haeufige_fehler);
+
+    var em = u.empfehlung || {};
+    var tab = h("table", "det-tabelle");
+    [["Sätze", em.saetze], ["Umfang", em.umfang], ["Pause", em.pause], ["Intensität", em.intensitaet],
+     ["Frequenz", em.frequenz_pro_woche != null ? em.frequenz_pro_woche + "× pro Woche" : ""]]
+      .forEach(function (z) {
+        if (z[1] == null || z[1] === "") return;
+        var tr = h("tr");
+        tr.appendChild(h("th", null, z[0]));
+        tr.appendChild(h("td", null, String(z[1])));
+        tab.appendChild(tr);
+      });
+    abschnitt("Empfehlung").appendChild(tab);
+
+    var geraete = (u.equipment || []).map(function (id) { return katalog.geraete[id] ? katalog.geraete[id].name : id; });
+    var gSec = abschnitt("Equipment");
+    if (geraete.length) liste(gSec, geraete); else gSec.appendChild(h("p", "det-leer", "Ohne Equipment"));
+
+    var qSec = abschnitt("Quellen", "det-quellen");
+    var qUl = h("ul");
+    (u.quellen || []).forEach(function (q) {
+      var li = h("li");
+      var a = h("a", null, q.titel || q.url);
+      a.href = q.url;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      li.appendChild(a);
+      if (q.plattform) li.appendChild(h("span", "det-plattform", labelVon(PLATTFORM_LABEL, q.plattform)));
+      qUl.appendChild(li);
+    });
+    qSec.appendChild(qUl);
+    raster.appendChild(rechts);
+    body.appendChild(raster);
+
+    /* Animation: rAF läuft nur, solange das Fenster offen und das Bild sichtbar ist
+       (animation.js prüft IntersectionObserver und document.visibilityState). */
+    var zieht = false, letzteAnzeige = "";
+    function anzeigen(z) {
+      var fertig = z.fertig && !z.laeuft;
+      spiel.textContent = z.laeuft ? "❚❚" : (fertig ? "↻" : "▶");
+      spiel.setAttribute("aria-label", z.laeuft ? "Pause" : (fertig ? "Wiederholen" : "Abspielen"));
+      spiel.classList.toggle("wieder", fertig);
+      if (!zieht) leiste.value = String(Math.round(z.fortschritt * 1000));
+      var schluessel = z.phase + "|" + z.seite + "|" + z.phasen + "|" + z.phaseName;
+      if (schluessel !== letzteAnzeige) {
+        letzteAnzeige = schluessel;
+        phaseName.textContent = "Phase " + (z.phase + 1) + " von " + z.phasen + " · " + z.phaseName;
+        phaseHinweis.textContent = z.hinweis || "";
+        seite.hidden = z.seiten < 2;
+        if (z.seiten > 1) seite.textContent = "Seite " + z.seite + " / 2";
+      }
+    }
+    var steuerung = window.ZyklusAnimation.erzeugen(canvas, u, null, {
+      erscheinungsbild: "dunkel",
+      beiAenderung: anzeigen
+    });
+    detail.steuerung = steuerung;
+
+    spiel.addEventListener("click", function () {
+      var z = steuerung.zustand();
+      if (z.fertig && !z.laeuft) steuerung.wiederholen(); else steuerung.umschalten();
+    });
+    zurueck.addEventListener("click", function () { steuerung.schritt(-1); });
+    vor.addEventListener("click", function () { steuerung.schritt(1); });
+    leiste.addEventListener("input", function () {
+      zieht = true;
+      if (steuerung.laeuft()) steuerung.pause();
+      steuerung.setzeFortschritt(Number(leiste.value) / 1000);
+    });
+    leiste.addEventListener("change", function () { zieht = false; });
+
+    /* prefers-reduced-motion: nicht automatisch starten – Pose 0 als Standbild und Abspielknopf. */
+    if (!REDUCED) steuerung.start();
+    anzeigen(steuerung.zustand());
+  }
+
+  /* Knopf oben im Detailfenster: Archiv → Plan (Zielauswahl) bzw. Plan → Archiv. */
+  function detailAktion(u) {
+    var box = h("div", "det-aktion");
+    var kontext = detail.kontext || { quelle: "archiv" };
+    var entry = { name: u.name, katalogId: u.id, index: katalog.nachId[u.id] || null, db: null };
+    /* Wie archivEintraege: zuerst die gespeicherte Referenz, dann der Name. */
+    state.db.forEach(function (e) { if (!entry.db && e.katalog === u.id) entry.db = e; });
+    state.db.forEach(function (e) { if (!entry.db && dbKey(e.name) === dbKey(u.name)) entry.db = e; });
+    if (entry.db) entry.name = entry.db.name;
+    var n = planUsage()[dbKey(entry.name)] || 0;
+
+    function neu() {
+      var ersatz = detailAktion(u);
+      box.parentNode.replaceChild(ersatz, box);
+    }
+
+    if (kontext.quelle === "plan" && kontext.uid) {
+      box.appendChild(h("span", "det-imPlan", "Im Plan: " + zielText(kontext.w, kontext.di, kontext.loc)));
+      var raus = h("button", "det-aktion-btn", "Zurück ins Archiv");
+      raus.type = "button";
+      raus.addEventListener("click", function () {
+        ausPlanEntfernen(kontext.w, kontext.di, kontext.loc, kontext.uid);
+        detail.kontext = { quelle: "archiv" };
+        neu();
+      });
+      box.appendChild(raus);
+      return box;
+    }
+
+    box.appendChild(h("span", "det-imPlan", n ? (n === 1 ? "Im Plan" : n + "× im Plan") : "Nur im Archiv"));
+    var rein = h("button", "det-aktion-btn primaer", "+ In den Plan");
+    rein.type = "button";
+    rein.setAttribute("aria-expanded", "false");
+    var auswahl = null;
+    rein.addEventListener("click", function () {
+      if (auswahl) {
+        box.removeChild(auswahl);
+        auswahl = null;
+        rein.setAttribute("aria-expanded", "false");
+        return;
+      }
+      auswahl = planZielAuswahl(entry, function () {
+        neu();
+        if (!el.sheetDb.hidden) buildDbList(el.dbSearch.value);
+      });
+      box.appendChild(auswahl);
+      rein.setAttribute("aria-expanded", "true");
+    });
+    box.appendChild(rein);
+    return box;
+  }
+
+  /* Prüfzugang für die Abnahme (Playwright): laufende Steuerung und Detailfenster. */
+  window.ZyklusKatalog = {
+    detailSteuerung: function () { return detail.steuerung; },
+    oeffnen: function (id) { openDetail(id, { quelle: "archiv" }); }
+  };
 
   /* ───────────────────────── Kalender ───────────────────────── */
 
@@ -1697,10 +2081,10 @@
     return p.length === 5 && LOC_LABEL[p[2]] ? p[2] : null;
   }
 
-  /* Tages-Zusammenfassung: Haken, Plansoll, Status, Dauer. null = kein Eintrag. */
+  /* Tages-Zusammenfassung: Haken, Plansoll, Status. null = kein Eintrag. */
   function daySummary(key) {
     var d = state.days[key];
-    if (!d || (!d.start && !Object.keys(d.checks).length)) return null;
+    if (!d || !d.checks || !Object.keys(d.checks).length) return null;
     var pd = planDayFor(parseKey(key));
     var total = dayTotal(pd.day);
     var done = 0;
@@ -1711,8 +2095,7 @@
     return {
       d: d, planDay: pd, total: total, done: done,
       checks: Object.keys(d.checks).length,
-      complete: complete,
-      dur: workoutDuration(key, complete)
+      complete: complete
     };
   }
 
@@ -1739,7 +2122,7 @@
     el.calGrid.textContent = "";
     var lead = (new Date(y, m, 1).getDay() + 6) % 7;
     var dim = new Date(y, m + 1, 0).getDate();
-    var trainings = 0, totalMs = 0;
+    var trainings = 0;
 
     for (var i = 0; i < lead; i++) el.calGrid.appendChild(h("span", "cal-pad"));
 
@@ -1759,13 +2142,7 @@
           var pct = s.total ? Math.min(1, s.done / s.total) : 1;
           cell.appendChild(svgRing(pct, "var(--cal-acc)"));
           trainings++;
-          /* Heute zählt zur Monatssumme erst, wenn das Workout beendet oder
-             der Tag komplett ist – sonst wüchse die Summe im Sekundentakt. */
-          if (s.dur != null && s.dur > 0 &&
-              (key !== todayRef.key || s.complete || s.d.end)) totalMs += s.dur;
-          aria += ", " + s.checks + " Übungen" +
-            (s.complete ? ", komplett" : "") +
-            (s.dur != null && s.dur > 0 ? ", " + fmtDur(s.dur) : "");
+          aria += ", " + s.checks + " Übungen" + (s.complete ? ", komplett" : "");
         }
         cell.setAttribute("aria-label", aria);
         cell.appendChild(h("b", null, String(day)));
@@ -1786,12 +2163,6 @@
       st1.appendChild(h("b", null, String(trainings)));
       st1.appendChild(document.createTextNode(" Training" + (trainings === 1 ? "" : "s")));
       el.calStats.appendChild(st1);
-      if (totalMs > 0) {
-        var st2 = h("span", "cal-stat");
-        st2.appendChild(h("b", null, fmtDur(totalMs)));
-        st2.appendChild(document.createTextNode(" gesamt"));
-        el.calStats.appendChild(st2);
-      }
     } else {
       el.calStats.appendChild(h("span", "cal-stat dim", "Kein Training in diesem Monat"));
     }
@@ -1819,29 +2190,25 @@
       return;
     }
 
-    var tag = h("span", "cal-status" +
-      (s.complete ? " ok" : (s.d.end ? " fin" : "")),
-      s.complete ? "Komplett" : (s.d.end ? "Beendet" : (calSel === todayRef.key ? "Läuft" : "Teilweise")));
+    var tag = h("span", "cal-status" + (s.complete ? " ok" : ""), s.complete ? "Komplett" : "Teilweise");
     head.appendChild(tag);
     box.appendChild(head);
 
     var meta = h("p", "cal-d-meta",
       s.checks + " Übung" + (s.checks === 1 ? "" : "en") +
-      (s.total ? " von " + s.total : "") +
-      (s.dur != null && s.dur > 0 ? " · " + fmtDur(s.dur) : ""));
+      (s.total ? " von " + s.total : ""));
     box.appendChild(meta);
 
     var idx = uidIndex();
-    var splits = splitMap(calSel);
     var list = h("div", "cal-d-list");
 
-    /* Abgehakte Übungen in Abhak-Reihenfolge, danach die ohne Zeitstempel. */
+    /* Abgehakte Übungen in Abhak-Reihenfolge, danach die nachgetragenen. */
     var timed = checksSorted(calSel);
     var seen = Object.create(null);
     timed.forEach(function (c) { seen[c.uid] = true; });
     var untimed = Object.keys(s.d.checks).filter(function (uid) { return !seen[uid]; });
 
-    function addRow(uid, ms) {
+    function addRow(uid) {
       var info = idx[uid];
       var loc = info ? info.loc : uidLoc(uid);
       var row = h("div", "cal-d-row");
@@ -1849,12 +2216,11 @@
       dot.style.background = loc ? locColor(loc) : "var(--fg3)";
       row.appendChild(dot);
       row.appendChild(h("span", "nm", info ? info.name : "Frühere Übung"));
-      if (ms != null && ms >= 1000) row.appendChild(h("span", "tm", fmtDur(ms)));
       list.appendChild(row);
     }
 
-    timed.forEach(function (c) { addRow(c.uid, splits[c.uid]); });
-    untimed.forEach(function (uid) { addRow(uid, null); });
+    timed.forEach(function (c) { addRow(c.uid); });
+    untimed.forEach(addRow);
 
     /* Nicht gemachte Übungen des Plan-Tags (nur bei Trainingstagen). */
     if (s.total) {
@@ -1961,30 +2327,51 @@
     window.scrollTo(0, lockY);
   }
 
-  var sheetOpener = null;   // Fokus nach dem Schließen dorthin zurückgeben
+  /* Offene Sheets von unten nach oben. Das Detailfenster einer Übung öffnet sich
+     über dem Archiv; Scroll-Lock und Hintergrund-Sperre gelten einmal für den ganzen
+     Stapel, der Fokus kehrt je Sheet zu seinem Auslöser zurück. */
+  var sheetStapel = [];     // [{ node, opener }]
+
+  function sheetSperren(node, an) {
+    if (an) node.setAttribute("aria-hidden", "true"); else node.removeAttribute("aria-hidden");
+    if ("inert" in node) node.inert = an;
+  }
 
   function closeSheet(node) {
+    var pos = -1;
+    for (var i = 0; i < sheetStapel.length; i++) { if (sheetStapel[i].node === node) pos = i; }
     node.hidden = true;
-    unlockScroll();
-    el.main.removeAttribute("aria-hidden");
-    el.hdr.removeAttribute("aria-hidden");
-    if ("inert" in el.main) { el.main.inert = false; el.hdr.inert = false; }
-    if (sheetOpener && sheetOpener.focus) {
-      try { sheetOpener.focus(); } catch (e) {}
+    if (node === el.sheetDetail) detailSchliessen();
+    if (pos < 0) return;
+    var eintrag = sheetStapel.splice(pos, 1)[0];
+    if (!sheetStapel.length) {
+      unlockScroll();
+      el.main.removeAttribute("aria-hidden");
+      el.hdr.removeAttribute("aria-hidden");
+      if ("inert" in el.main) { el.main.inert = false; el.hdr.inert = false; }
+    } else {
+      sheetSperren(sheetStapel[sheetStapel.length - 1].node, false);
     }
-    sheetOpener = null;
+    if (eintrag.opener && eintrag.opener.focus && document.body.contains(eintrag.opener)) {
+      try { eintrag.opener.focus(); } catch (e) {}
+    }
   }
 
   function openSheet(node) {
-    lockScroll();
+    if (!node.hidden) return;
+    if (!sheetStapel.length) {
+      lockScroll();
+      el.main.setAttribute("aria-hidden", "true");
+      el.hdr.setAttribute("aria-hidden", "true");
+      /* aria-hidden allein lässt den Hintergrund fokussierbar – inert nimmt
+         ihn wirklich aus der Tab-Reihenfolge (iOS-Safari ≥ 15.5). */
+      if ("inert" in el.main) { el.main.inert = true; el.hdr.inert = true; }
+      hideJump();
+    } else {
+      sheetSperren(sheetStapel[sheetStapel.length - 1].node, true);
+    }
+    sheetStapel.push({ node: node, opener: document.activeElement });
     node.hidden = false;
-    el.main.setAttribute("aria-hidden", "true");
-    el.hdr.setAttribute("aria-hidden", "true");
-    /* aria-hidden allein lässt den Hintergrund fokussierbar – inert nimmt
-       ihn wirklich aus der Tab-Reihenfolge (iOS-Safari ≥ 15.5). */
-    if ("inert" in el.main) { el.main.inert = true; el.hdr.inert = true; }
-    hideJump();
-    sheetOpener = document.activeElement;
     var x = node.querySelector(".sheet-x");
     if (x) { try { x.focus(); } catch (e) {} }
     Array.prototype.forEach.call(node.querySelectorAll("[data-close]"), function (n) {
@@ -2034,6 +2421,8 @@
 
   function openCycle() {
     buildCycleSheet();
+    resetImportUi();
+    renderAppStatus();
     openSheet(el.sheetCycle);
   }
 
@@ -2151,8 +2540,7 @@
       /* Tageswechsel unter einem offenen Sheet: erst schließen, sonst wird
          unter dem Scroll-Lock gerendert und die alte Scroll-Position später
          auf der neuen Ansicht wiederhergestellt. */
-      var open = anyOpenSheet();
-      if (open) closeSheet(open);
+      while (sheetStapel.length) closeSheet(sheetStapel[sheetStapel.length - 1].node);
       goTo(todayRef.week, todayRef.dayIndex);
     } else {
       render();
@@ -2170,6 +2558,498 @@
     if (next <= now) next.setDate(next.getDate() + 1);
     var wait = Math.min(next - now + 1000, 6 * 3600000);   // spätestens alle 6 h nachsehen
     rolloverTimer = setTimeout(rollover, Math.max(1000, wait));
+  }
+
+  /* ───────────────────────── Offline & Updates ───────────────────────── */
+
+  /* Die App läuft vollständig aus dem Speicher des Geräts (sw.js). Hier nur:
+     den Worker anmelden, beim Öffnen nach einer neuen Fassung fragen, den Stand
+     im Zyklus-Sheet zeigen und eine fertig geladene neue Fassung anbieten. */
+
+  var UPDATE_CHECK_MS = 60000;               // höchstens einmal pro Minute beim Server nachfragen
+  var APPLY_AFTER_HIDDEN_MS = 10 * 60000;    // nach so langer Pause ein Update still übernehmen
+  var READY_KEY = STORE_KEY + ".offline-bereit";   // „Offline bereit" nur einmal melden
+
+  var offline = {
+    supported: "serviceWorker" in navigator,
+    reg: null,
+    info: null,          // letzte Meldung des Workers: { version, missing, total }
+    updateReady: false,
+    lastCheck: 0,
+    hiddenAt: 0
+  };
+
+  /* Worker nach Fassung und Vollständigkeit fragen. Der Worker vor der
+     Offline-Umstellung kennt die Frage nicht – dann nach 2 s null. */
+  function askWorker(worker) {
+    return new Promise(function (resolve) {
+      if (!worker || typeof MessageChannel === "undefined") { resolve(null); return; }
+      var ch = new MessageChannel();
+      var timer = setTimeout(function () { resolve(null); }, 2000);
+      ch.port1.onmessage = function (e) {
+        clearTimeout(timer);
+        resolve(e.data && e.data.type === "status" ? e.data : null);
+      };
+      try { worker.postMessage({ type: "status" }, [ch.port2]); }
+      catch (err) { clearTimeout(timer); resolve(null); }
+    });
+  }
+
+  /* Auswertung jeder Worker-Meldung. Verglichen wird mit der Fassung dieses
+     app.js selbst – das hängt nicht davon ab, ob der neue Worker schon vor dem
+     Start der Seite übernommen hat oder erst danach. */
+  function onWorkerStatus(info) {
+    if (!info) return;
+    offline.info = info;
+    if (info.version !== APP_VERSION) {
+      /* Der Speicher hält eine andere, frisch geladene Fassung bereit. Anbieten
+         erst, wenn sie vollständig ist – ein Neuladen ohne Netz scheiterte sonst
+         an genau den fehlenden Dateien. */
+      if (!info.missing && !offline.updateReady) {
+        offline.updateReady = true;
+        showToast("update");
+      }
+    } else {
+      if (offline.updateReady) {
+        // Seite und Speicher sind wieder gleichauf – der Hinweis ist überholt.
+        offline.updateReady = false;
+        if (toastNode && toastNode.classList.contains("toast--update")) hideToast();
+      }
+      if (!info.missing) {
+        var shown = "1";
+        try { shown = localStorage.getItem(READY_KEY); } catch (e) { /* ohne Speicher: nicht melden */ }
+        if (!shown) {
+          try { localStorage.setItem(READY_KEY, String(Date.now())); } catch (e) { /* egal */ }
+          showToast("ready");
+        }
+      }
+    }
+    renderAppStatus();
+  }
+
+  function initOffline() {
+    if (!offline.supported) return;
+    var swc = navigator.serviceWorker;
+
+    askWorker(swc.controller).then(onWorkerStatus);
+    swc.addEventListener("controllerchange", function () {
+      askWorker(swc.controller).then(onWorkerStatus);
+    });
+    // Meldung nach einer Reparatur des Speichers (siehe sw.js).
+    swc.addEventListener("message", function (e) {
+      if (e.data && e.data.type === "status") onWorkerStatus(e.data);
+    });
+
+    var register = function () {
+      swc.register("sw.js")
+        .then(function (reg) {
+          offline.reg = reg;
+          offline.lastCheck = Date.now();   // der Seitenaufruf hat eben schon nachgesehen
+        })
+        .catch(function () { /* etwa privater Modus: dann nur online */ });
+    };
+    if (document.readyState === "complete") register();
+    else window.addEventListener("load", register);
+
+    document.addEventListener("visibilitychange", function () {
+      if (document.visibilityState === "hidden") { offline.hiddenAt = Date.now(); return; }
+      /* Nach längerer Pause eine fertig geladene neue Fassung still übernehmen –
+         Plan und Haken liegen ohnehin im Speicher. */
+      if (offline.updateReady && offline.hiddenAt &&
+          Date.now() - offline.hiddenAt > APPLY_AFTER_HIDDEN_MS &&
+          !anyOpenSheet() && !editing) {
+        location.reload();
+        return;
+      }
+      checkForUpdate(false);
+    });
+    window.addEventListener("online", function () { checkForUpdate(true); });
+  }
+
+  function checkForUpdate(force) {
+    if (!offline.reg || offline.updateReady || navigator.onLine === false) return;
+    var now = Date.now();
+    if (!force && now - offline.lastCheck < UPDATE_CHECK_MS) return;
+    offline.lastCheck = now;
+    try { offline.reg.update().catch(function () {}); } catch (e) { /* ältere Browser */ }
+  }
+
+  function versionDate(v) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})\./.exec(v || "");
+    return m ? m[3] + "." + m[2] + "." + m[1] : "";
+  }
+
+  function statusRow(kind, title, text) {
+    var row = h("div", "app-row app-row--" + kind);
+    row.appendChild(h("i", "app-dot"));
+    var body = h("div", "app-row-body");
+    body.appendChild(h("b", null, title));
+    if (text) body.appendChild(h("span", null, text));
+    row.appendChild(body);
+    return row;
+  }
+
+  function renderAppStatus() {
+    if (!el.appStatus) return;
+    var box = el.appStatus;
+    var info = offline.info;
+    box.textContent = "";
+
+    if (!offline.supported) {
+      box.appendChild(statusRow("warn", "Offline nicht möglich",
+        "Dieser Browser kann die App nicht auf dem Gerät speichern."));
+    } else if (info && info.missing === 0) {
+      box.appendChild(statusRow("ok", "Offline bereit",
+        "Liegt vollständig auf diesem Gerät und startet ohne Internet · Stand " + versionDate(info.version)));
+    } else if (info && info.missing > 0) {
+      box.appendChild(statusRow("warn", "Offline unvollständig",
+        info.missing + " von " + info.total + " Dateien fehlen – sie werden mit Internet automatisch nachgeladen."));
+    } else {
+      box.appendChild(statusRow("busy", "Wird eingerichtet …",
+        "Einmal mit Internet öffnen – danach startet Zyklus auch ohne Netz."));
+    }
+
+    if (offline.updateReady) {
+      var up = statusRow("up", "Neue Version geladen", "Wird beim nächsten Start aktiv.");
+      var go = h("button", "app-row-btn", "Jetzt");
+      go.type = "button";
+      go.addEventListener("click", function () { location.reload(); });
+      up.appendChild(go);
+      box.appendChild(up);
+    }
+
+    box.appendChild(isStandalone()
+      ? statusRow("ok", "Als App installiert", "Läuft vom Home-Bildschirm im Vollbild.")
+      : statusRow("hint", "Im Browser geöffnet", installSteps()));
+  }
+
+  /* ───────────────────────── Installation ───────────────────────── */
+
+  var INSTALL_KEY = STORE_KEY + ".installhinweis";   // eigener Schlüssel, gehört nicht in Sicherungen
+  var installPrompt = null;                          // Android/Chrome: gemerktes beforeinstallprompt
+
+  function isStandalone() {
+    return window.navigator.standalone === true ||
+      !!(window.matchMedia && matchMedia("(display-mode: standalone)").matches);
+  }
+
+  function platform() {
+    var ua = navigator.userAgent || "";
+    if (/Android/i.test(ua)) return "android";
+    // iPadOS meldet sich als Mac – erkennbar nur am Touchscreen.
+    if (/iPhone|iPad|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)) {
+      return "ios";
+    }
+    return "desktop";
+  }
+
+  function installSteps() {
+    var p = platform();
+    if (p === "ios") return "Zum Installieren: Teilen-Symbol antippen → „Zum Home-Bildschirm“.";
+    if (p === "android") {
+      return installPrompt
+        ? "Zum Installieren: „Installieren“ oben auf der Tagesseite antippen."
+        : "Zum Installieren: Browsermenü ⋮ → „App installieren“ oder „Zum Startbildschirm hinzufügen“.";
+    }
+    return "Auf dem Handy öffnen und zum Home-Bildschirm hinzufügen.";
+  }
+
+  function installHintWanted() {
+    if (isStandalone()) return false;
+    if (platform() === "desktop" && !installPrompt) return false;
+    try { if (localStorage.getItem(INSTALL_KEY)) return false; } catch (e) { /* ohne Speicher: zeigen */ }
+    return true;
+  }
+
+  function svgLine(cls, d, stroke, width) {
+    var s = document.createElementNS(NS, "svg");
+    s.setAttribute("class", cls);
+    s.setAttribute("viewBox", "0 0 16 16");
+    s.setAttribute("aria-hidden", "true");
+    var p = document.createElementNS(NS, "path");
+    p.setAttribute("d", d);
+    p.setAttribute("fill", "none");
+    p.setAttribute("stroke", stroke);
+    p.setAttribute("stroke-width", width);
+    p.setAttribute("stroke-linecap", "round");
+    p.setAttribute("stroke-linejoin", "round");
+    s.appendChild(p);
+    return s;
+  }
+
+  function buildInstallCard() {
+    var card = h("section", "install");
+    card.id = "install-card";
+    card.setAttribute("aria-label", "Zyklus als App installieren");
+
+    var x = h("button", "install-x", "✕");
+    x.type = "button";
+    x.setAttribute("aria-label", "Hinweis ausblenden");
+    x.addEventListener("click", function () {
+      try { localStorage.setItem(INSTALL_KEY, String(Date.now())); } catch (e) { /* dann nur für jetzt */ }
+      card.classList.add("out");
+      setTimeout(function () { if (card.parentNode) card.parentNode.removeChild(card); }, REDUCED ? 0 : 280);
+    });
+    card.appendChild(x);
+
+    var head = h("div", "install-head");
+    var icon = h("img", "install-icon");
+    icon.src = "icons/icon-192.png";
+    icon.alt = "";
+    head.appendChild(icon);
+    var title = h("div", "install-tt");
+    title.appendChild(h("b", null, "Zyklus als App"));
+    title.appendChild(h("span", null, "Vom Home-Bildschirm startet Zyklus im Vollbild – ganz ohne Internet."));
+    head.appendChild(title);
+    card.appendChild(head);
+
+    if (installPrompt) {
+      var go = h("button", "install-go", "Installieren");
+      go.type = "button";
+      go.addEventListener("click", function () {
+        var ev = installPrompt;
+        installPrompt = null;
+        if (!ev) return;
+        ev.prompt();
+        Promise.resolve(ev.userChoice).then(refreshInstallCard, refreshInstallCard);
+      });
+      card.appendChild(go);
+    } else if (platform() === "ios") {
+      var steps = h("div", "install-steps");
+      var share = h("span", "install-step");
+      share.appendChild(svgLine("share-ico",
+        "M8 9.8V1.9M5.3 4.5 8 1.8l2.7 2.7M5.6 6.6H4.2A1.2 1.2 0 0 0 3 7.8v5.9a1.2 1.2 0 0 0 1.2 1.2h7.6" +
+        "a1.2 1.2 0 0 0 1.2-1.2V7.8a1.2 1.2 0 0 0-1.2-1.2h-1.4", "currentColor", "1.5"));
+      share.appendChild(h("b", null, "Teilen"));
+      steps.appendChild(share);
+      steps.appendChild(h("i", "install-arrow", "→"));
+      var add = h("span", "install-step");
+      add.appendChild(h("b", null, "„Zum Home-Bildschirm“"));
+      steps.appendChild(add);
+      card.appendChild(steps);
+    } else {
+      card.appendChild(h("p", "install-text", installSteps()));
+    }
+
+    /* Browser und installierte App haben getrennte Speicher – wer hier schon
+       trainiert hat, soll seinen Stand mitnehmen können. */
+    if (Object.keys(state.days).length) {
+      var note = h("div", "install-note");
+      note.appendChild(h("span", null,
+        "Die installierte App hat einen eigenen Speicher. Plan und Haken von hier nimmst du mit: " +
+        "erst sichern, dann in der App über das Wochen-Badge oben „Sicherung laden“."));
+      var saveBtn = h("button", "install-save", "Sicherung speichern");
+      saveBtn.type = "button";
+      saveBtn.addEventListener("click", exportBackup);
+      note.appendChild(saveBtn);
+      card.appendChild(note);
+    }
+    return card;
+  }
+
+  function refreshInstallCard() {
+    var old = document.getElementById("install-card");
+    if (!installHintWanted()) {
+      if (old && old.parentNode) old.parentNode.removeChild(old);
+      return;
+    }
+    var card = buildInstallCard();
+    if (old && old.parentNode) { old.parentNode.replaceChild(card, old); return; }
+    var pill = el.main.querySelector(".today-pill");
+    el.main.insertBefore(card, pill ? pill.nextSibling : el.main.firstChild);
+  }
+
+  function initInstall() {
+    window.addEventListener("beforeinstallprompt", function (e) {
+      e.preventDefault();          // eigene Karte statt Chromes Mini-Leiste
+      installPrompt = e;
+      refreshInstallCard();
+      renderAppStatus();
+    });
+    window.addEventListener("appinstalled", function () {
+      installPrompt = null;
+      try { localStorage.setItem(INSTALL_KEY, String(Date.now())); } catch (e) { /* egal */ }
+      refreshInstallCard();
+    });
+  }
+
+  /* ───────────────────────── Sicherung ───────────────────────── */
+
+  /* Plan, Übungsdatenbank und Haken als Datei – zum Aufbewahren und für den
+     Umzug zwischen Browser, installierter App und neuem Handy. */
+
+  var pendingImport = null;
+
+  function downloadFile(text, name) {
+    var url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
+    var a = h("a");
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 30000);
+  }
+
+  function exportBackup() {
+    var json = JSON.stringify({ app: "zyklus", format: 1, exported: new Date().toISOString(), data: state });
+    var name = "Zyklus-Sicherung-" + dayKeyFromDate(new Date()) + ".json";
+    var file = null;
+    try { file = new File([json], name, { type: "application/json" }); } catch (e) { file = null; }
+
+    // Teilen-Menü (iPhone: „In Dateien sichern", AirDrop, Mail …), sonst Download.
+    var share = false;
+    try { share = !!(file && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })); }
+    catch (e) { share = false; }
+    if (!share) { downloadFile(json, name); return; }
+    navigator.share({ files: [file], title: "Zyklus-Sicherung" }).catch(function (err) {
+      if (!err || err.name !== "AbortError") downloadFile(json, name);
+    });
+  }
+
+  function setBackupNote(text, kind) {
+    if (!el.appNote) return;
+    el.appNote.textContent = text || "";
+    el.appNote.className = "app-note" + (kind ? " app-note--" + kind : "");
+    el.appNote.hidden = !text;
+    if (text) el.appNote.scrollIntoView({ block: "nearest", behavior: REDUCED ? "auto" : "smooth" });
+  }
+
+  function resetImportUi() {
+    pendingImport = null;
+    if (!el.appConfirm) return;
+    el.appConfirm.hidden = true;
+    el.appConfirm.textContent = "";
+    setBackupNote("");
+  }
+
+  function onImportFile() {
+    var f = el.appFile.files && el.appFile.files[0];
+    if (!f) return;
+    var reader = new FileReader();
+    reader.onload = function () { prepareImport(String(reader.result || "")); };
+    reader.onerror = function () { setBackupNote("Die Datei ließ sich nicht lesen.", "err"); };
+    reader.readAsText(f);
+  }
+
+  function prepareImport(text) {
+    resetImportUi();
+    var p = null;
+    try { p = JSON.parse(text); } catch (e) { p = null; }
+    // Sicherungsdatei dieser App oder roher Speicherstand (zyklus.v2) – beides geht.
+    var data = p && p.app === "zyklus" && p.data ? p.data : p;
+    if (!data || typeof data !== "object" || !validPlan(data.plan)) {
+      setBackupNote("Das ist keine Zyklus-Sicherung – es wurde nichts geändert.", "err");
+      return;
+    }
+    pendingImport = data;
+
+    var weeks = data.plan.weeks.length;
+    /* Nur Tage mit Haken zählen – Tage aus der früheren Workout-Uhr ohne Haken verwirft pruneDays. */
+    var days = data.days && typeof data.days === "object" ? Object.keys(data.days).filter(function (k) {
+      var d = data.days[k];
+      return d && typeof d === "object" && d.checks && typeof d.checks === "object" && Object.keys(d.checks).length > 0;
+    }).length : 0;
+    var when = p.exported ? new Date(p.exported) : null;
+    var title = when && !isNaN(when.getTime())
+      ? "Sicherung vom " + pad2(when.getDate()) + "." + pad2(when.getMonth() + 1) + "." +
+        when.getFullYear() + ", " + pad2(when.getHours()) + ":" + pad2(when.getMinutes()) + " Uhr"
+      : "Sicherung gefunden";
+
+    var box = el.appConfirm;
+    box.appendChild(h("b", null, title));
+    box.appendChild(h("span", null, weeks + (weeks === 1 ? " Woche" : " Wochen") + " im Zyklus · " +
+      days + (days === 1 ? " Trainingstag" : " Trainingstage") + " im Kalender"));
+    box.appendChild(h("p", null, "Ersetzt Plan, Übungsdatenbank und Haken auf diesem Gerät."));
+    var acts = h("div", "app-confirm-acts");
+    var no = h("button", "app-btn", "Abbrechen");
+    no.type = "button";
+    no.addEventListener("click", resetImportUi);
+    var yes = h("button", "app-btn app-btn--go", "Übernehmen");
+    yes.type = "button";
+    yes.addEventListener("click", applyImport);
+    acts.appendChild(no);
+    acts.appendChild(yes);
+    box.appendChild(acts);
+    box.hidden = false;
+    // Nach der Dateiauswahl steht der Blick oben im Sheet – Rückfrage ins Bild holen.
+    box.scrollIntoView({ block: "nearest", behavior: REDUCED ? "auto" : "smooth" });
+  }
+
+  function applyImport() {
+    var data = pendingImport;
+    if (!data) return;
+    try {
+      var cur = localStorage.getItem(STORE_KEY);
+      if (cur) localStorage.setItem(STORE_KEY + ".vor-import", cur);   // Rückfall auf den Stand davor
+      localStorage.setItem(STORE_KEY, JSON.stringify(data));
+    } catch (e) {
+      setBackupNote("Speichern auf diesem Gerät ist fehlgeschlagen – es wurde nichts geändert.", "err");
+      return;
+    }
+    pendingImport = null;
+    state = loadState();   // dieselbe Prüfung und Reparatur wie beim App-Start
+    save();
+    computeToday();
+    editing = false;
+    closeSheet(el.sheetCycle);
+    goTo(todayRef.week, todayRef.dayIndex);
+    showToast("info", "Sicherung übernommen");
+  }
+
+  /* ───────────────────────── Hinweis-Pille ───────────────────────── */
+
+  var toastNode = null;
+  var toastTimer = null;
+
+  function hideToast() {
+    clearTimeout(toastTimer);
+    var n = toastNode;
+    toastNode = null;
+    if (!n) return;
+    n.classList.add("out");
+    setTimeout(function () { if (n.parentNode) n.parentNode.removeChild(n); }, REDUCED ? 0 : 240);
+  }
+
+  function showToast(kind, text) {
+    hideToast();
+    var t = h("div", "toast toast--" + kind);
+    t.setAttribute("role", "status");
+
+    var ico = h("span", "toast-ico");
+    ico.appendChild(kind === "update"
+      ? svgLine("toast-refresh", "M13.3 6.3A5.5 5.5 0 1 0 13.5 9.7M13.7 2.5v3.9H9.8", "#fff", "1.8")
+      : svgLine("toast-check", "M3.5 8.4l3 3 6-6.6", "#30D158", "2.2"));
+    t.appendChild(ico);
+
+    var body = h("div", "toast-body");
+    if (kind === "ready") {
+      body.appendChild(h("b", null, "Offline bereit"));
+      body.appendChild(h("span", null, "Zyklus liegt jetzt auf diesem Gerät und startet ohne Internet."));
+    } else if (kind === "update") {
+      body.appendChild(h("b", null, "Neue Version geladen"));
+      body.appendChild(h("span", null, "Schon offline gespeichert – ein Tipp, und sie ist aktiv."));
+    } else {
+      body.appendChild(h("b", null, text || ""));
+    }
+    t.appendChild(body);
+
+    if (kind === "update") {
+      var go = h("button", "toast-go", "Aktualisieren");
+      go.type = "button";
+      go.addEventListener("click", function () { location.reload(); });
+      t.appendChild(go);
+      var x = h("button", "toast-x", "✕");
+      x.type = "button";
+      x.setAttribute("aria-label", "Später");
+      x.addEventListener("click", hideToast);
+      t.appendChild(x);
+    } else {
+      toastTimer = setTimeout(hideToast, kind === "ready" ? 6000 : 3500);
+    }
+
+    document.body.appendChild(t);
+    toastNode = t;
   }
 
   /* ───────────────────────── Start ───────────────────────── */
@@ -2201,9 +3081,37 @@
       buildAddList(el.addSearch.value);
     });
     el.dbSearch.addEventListener("input", function () { buildDbList(el.dbSearch.value); });
+    if (el.archFilter) {
+      [["kategorie", el.fKategorie], ["disziplin", el.fDisziplin], ["level", el.fLevel], ["geraet", el.fGeraet]]
+        .forEach(function (f) {
+          f[1].addEventListener("change", function () {
+            archivFilter[f[0]] = f[1].value;
+            buildDbList(el.dbSearch.value);
+          });
+        });
+      el.archReset.addEventListener("click", function () {
+        archivFilter = { kategorie: "", disziplin: "", level: "", geraet: "" };
+        el.fKategorie.value = ""; el.fDisziplin.value = ""; el.fLevel.value = ""; el.fGeraet.value = "";
+        el.dbSearch.value = "";
+        buildDbList("");
+      });
+    }
 
     el.calPrev.addEventListener("click", function () { shiftCalMonth(-1); });
     el.calNext.addEventListener("click", function () { shiftCalMonth(1); });
+
+    /* Beim Umstieg vom alten Worker kann einmalig ein älteres index.html zu
+       diesem app.js geliefert werden – dann fehlt der App-Block, und ohne diese
+       Prüfung bräche init() vor dem ersten render() ab. */
+    if (el.appStatus && el.appExport && el.appImport && el.appFile) {
+      el.appExport.addEventListener("click", function () { resetImportUi(); exportBackup(); });
+      el.appImport.addEventListener("click", function () {
+        resetImportUi();
+        el.appFile.value = "";         // dieselbe Datei auch ein zweites Mal wählen können
+        el.appFile.click();
+      });
+      el.appFile.addEventListener("change", onImportFile);
+    }
 
     attachSwipe();
     watchHdr();
@@ -2212,11 +3120,11 @@
 
     render();
     onScroll();
+    katalogLaden();
 
     document.addEventListener("visibilitychange", function () {
       if (document.visibilityState !== "visible") return;
       rollover();
-      updateTimer();
     });
     scheduleRollover();
 
@@ -2230,11 +3138,8 @@
       document.addEventListener("visibilitychange", req);
     }
 
-    if ("serviceWorker" in navigator) {
-      window.addEventListener("load", function () {
-        navigator.serviceWorker.register("sw.js").catch(function () { /* offline ist optional */ });
-      });
-    }
+    initOffline();
+    initInstall();
 
     /* Da Plan und Historie nur in localStorage leben: den Browser bitten,
        den Speicher nicht bei Platzdruck zu räumen (best effort). */

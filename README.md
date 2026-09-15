@@ -2,38 +2,71 @@
 
 Web-App für meinen Trainingsplan im Wochen-Zyklus. Zeigt pro Tag alle Übungen mit
 Menge/Dauer und Anweisung, gruppiert nach Trainingsort. Der Plan ist **direkt in der
-App editierbar**, die Zykluslänge einstellbar, und ein Workout-Timer misst die
-Gesamtdauer und die Zeit pro Übung.
+App editierbar**, die Zykluslänge einstellbar, und zu den Übungen aus dem Katalog gibt es
+eine Anleitung mit animierter Strichfigur. Zeiten werden nicht gemessen (die frühere
+Workout-Uhr ist seit 14.09.2026 entfernt).
 
 **Live:** <https://w2nmh9s45b-bot.github.io/trainingsplan/>
 
 ## Benutzen
 
 Seite auf dem iPhone in Safari öffnen → Teilen-Symbol → **„Zum Home-Bildschirm"**.
-Danach startet sie wie eine App, im Vollbild und ohne Internet.
+Danach startet Zyklus wie eine App: im Vollbild und **komplett ohne Internet** – alle
+Dateien liegen auf dem Handy (siehe „Offline & Updates"). Im Browser zeigt die App
+dafür oben eine Installationskarte mit den zwei Handgriffen (✕ blendet sie dauerhaft aus).
 
 Beim Öffnen steht sofort der heutige Tag da:
 
 - **Kopfzeile** – Datum, Zyklus-Badge (`W1 · KRAFT`, antippen öffnet die
-  Zyklus-Einstellungen), Mini-Uhr bei laufendem Workout, Zähler `7/21`, `?` für die Basics.
+  Zyklus-Einstellungen), Zähler `7/21`, `?` für die Basics.
 - **Wochenstreifen** – alle Tage des Zyklus (eine Seite je Woche). Farbige Punkte =
   Trainingsorte des Tages, Strich = Ruhetag, grüner Haken = alles erledigt. Tippen
   wechselt den Tag, seitliches Wischen über die Liste ebenso.
-- **Hero-Karte** – Fortschrittsring des Tages, Orte mit Übungszahl (Antippen springt
-  zur Sektion) und die **Workout-Uhr**: „Workout starten" antippen oder einfach die
-  erste Übung abhaken – ab da läuft die Zeit. Jede abgehakte Übung bekommt einen
-  Zeit-Chip (Abstand zum vorherigen Haken, Pausen abgezogen). „Tag komplett" zeigt
-  die Gesamtdauer. Dazu drei Knöpfe: **Pause** hält die Uhr an (Chip und Kopf-Uhr
-  werden gelb), **▶ Fortsetzen** lässt sie weiterlaufen, **Beenden** schließt das
-  Workout vorzeitig ab, wenn nicht alle Übungen drankommen – die Dauer steht dann
-  fest, der Tag bleibt wie er ist. Auch nach „Beenden" geht **Fortsetzen** wieder:
-  Die Zeit dazwischen zählt als Pause, ebenso wenn man einfach die nächste Übung
-  abhakt.
+- **Hero-Karte** – Fortschrittsring des Tages und Orte mit Übungszahl (Antippen springt
+  zur Sektion).
 - **Liste** – je Trainingsort eine Karte mit Fortschrittsring. Eine Zeile antippen hakt
   sie ab (mit Partikel-Animation), nochmal antippen macht es rückgängig. Beim Scrollen
-  fliegen die nächsten Zeilen von links ein.
+  fliegen die nächsten Zeilen von links ein. Trägt der **Kreis ganz links** ein kleines
+  blaues „i", liegt eine Anleitung vor: Kreis antippen öffnet das Detailfenster mit
+  Animation, der Rest der Zeile hakt weiter ab. Ohne „i" hakt auch der Kreis ab.
 - **Fuß** – `Basics`, `Übungen` (Übungsdatenbank), `Kalender` (Trainingshistorie),
   `Bearbeiten` und `Tag zurücksetzen` (zweistufig).
+
+## Übungskatalog (Archiv + Animationen)
+
+`Übungen` im Fuß öffnet das **Archiv**: oben der Übungskatalog (Anleitung, 3D-Strichfigur),
+darunter alles, was je im Plan stand. Suche über Name und Ziel, Filter nach Kategorie,
+Disziplin, Level und Gerät. In der Liste laufen keine Animationen.
+
+- **Archiv → Plan:** `+` an der Zeile (oder „+ In den Plan" im Detailfenster) → Woche, Tag und
+  Ort wählen → übernehmen. Menge und Pause kommen aus der Empfehlung der Übung. Die Übung bleibt
+  im Archiv und ist dort als „im Plan" markiert. Im Bearbeiten-Modus zeigt „Übung hinzufügen"
+  die Katalogübungen ebenfalls.
+- **Detailfenster:** Name im Archiv oder den Kreis mit „i" an einer Planzeile antippen – beides ist dasselbe
+  Fenster. Ab 768 px links die Animation (Abspielen/Pause, ‹ › je Phase, Fortschrittsleiste,
+  Phase + Hinweis, bei Seitenwechsel „Seite 1 / 2"), rechts Risikohinweis, Anleitung, Achte auf,
+  Häufige Fehler, Empfehlung, Equipment, Quellen. Bei „Bewegung reduzieren" startet die
+  Animation nicht von selbst.
+- **Plan → Archiv:** im Detailfenster, das über den Kreis einer Planzeile geöffnet wurde, „Zurück ins Archiv" (ohne
+  Nachfrage). Reihenfolge im Plan: im Bearbeiten-Modus die Pfeile an jeder Zeile.
+
+Technik: `animation.js` zeichnet jede Übung allein aus ihren Keyframe-Daten nach
+`daten-import/animations-spezifikation.md` (keine Sonderfälle je Übung). Im Speicher `zyklus.v2`
+steht nur die Referenz `db[].katalog`; die Katalogdaten liegen in `daten/` und kommen offline aus
+dem Service-Worker-Cache. `daten/uebungen/<id>.json` wird erst beim Öffnen des Detailfensters
+gelesen.
+
+**Daten aktualisieren:** Quelle ist `daten-import/` (`uebungen.json`, `equipment.json` wie
+geliefert, dazu `korrekturen.json`). Danach `npm run daten` – erzeugt `daten/`, trägt die Dateien
+in `ASSETS` von `sw.js` ein und prüft alles (`scripts/validate-daten.mjs`, Geometrie über
+`pruefe-geometrie.py`). `npm test` führt die Unit-Tests aus (Node 24, Python 3). Beides läuft
+auch im pre-commit-Hook. Solange `scripts/vertikalschnitt.json` existiert, werden nur die dort
+genannten 10 Übungen erzeugt.
+
+**Korrekturen:** Einige Geräte-Positionen in `uebungen.json` stehen als Weltkoordinate statt als
+lokaler Versatz zum Gelenk (Spec §10). `daten-import/korrekturen.json` korrigiert sie mit
+Begründung und Altwert-Wächter; `offen` listet, was vor der Freigabe aller 72 Übungen noch von
+Hand gesetzt werden muss.
 
 ## Kalender
 
@@ -41,10 +74,10 @@ Beim Öffnen steht sofort der heutige Tag da:
 
 - **Monatsraster** – jeder Trainingstag trägt einen Fortschrittsring (blau = teilweise,
   grün = alle Übungen), heute ist umrandet; ‹ › blättert durch die Monate. Darunter
-  die Monatsbilanz (Anzahl Trainings, Gesamtzeit).
-- **Tagesdetail** – Tag antippen: Status (Komplett / Beendet / Teilweise), Übungszahl
-  und Workout-Dauer, dann alle abgehakten Übungen in Abhak-Reihenfolge mit der Zeit
-  pro Übung; nicht gemachte Übungen des Plan-Tags stehen ausgegraut als „offen" dabei.
+  die Monatsbilanz (Anzahl Trainings).
+- **Tagesdetail** – Tag antippen: Status (Komplett / Teilweise) und Übungszahl, dann alle
+  abgehakten Übungen in Abhak-Reihenfolge; nicht gemachte Übungen des Plan-Tags stehen
+  ausgegraut als „offen" dabei.
 - Die Zuordnung alter Tage zum Zyklus rechnet vom Anker-Montag aus zurück – wird der
   Zyklus später verschoben, ist die Soll-Liste alter Tage best effort.
 
@@ -75,25 +108,86 @@ Zyklus-Badge in der Kopfzeile antippen:
 
 Woche 1 beginnt am **Montag, 01.06.2026**; ab da laufen die Wochen durch.
 
+Unten im Zyklus-Sheet steht der Block **„App auf diesem Gerät"** (Offline-Stand,
+Installationsstatus, Sicherung – siehe unten).
+
+## Offline & Updates
+
+Die App arbeitet **offline zuerst** (`sw.js`): Jeder Start kommt sofort aus dem Speicher
+des Geräts – egal ob Netz da ist, schwach ist oder fehlt. Das Internet wird nur noch
+gebraucht, um eine neue Fassung abzuholen.
+
+- **Einrichtung:** einmal mit Internet öffnen. Der Service Worker lädt alle 11 App-Dateien
+  in den Cache `zyklus-<VERSION>`; danach meldet die App einmalig **„Offline bereit"**.
+  Der Stand steht dauerhaft im Zyklus-Sheet („Offline bereit · Stand TT.MM.JJJJ").
+- **Updates:** Beim Öffnen und beim Zurückholen aus dem Hintergrund (höchstens einmal pro
+  Minute) fragt die App beim Server nach. Eine neue Fassung wird im Hintergrund
+  **vollständig** in einen eigenen Cache geladen; erst dann übernimmt der neue Worker.
+  Bricht der Download ab (Funkloch, WLAN-Anmeldeseite), läuft die alte Fassung weiter.
+- **Hinweis-Pille:** „Neue Version geladen → Aktualisieren" lädt neu (Plan und Haken
+  liegen im Speicher, es geht nichts verloren). Wer sie ignoriert: Beim
+  nächsten Start ist die neue Fassung aktiv; lag die App über **10 Minuten** im
+  Hintergrund, wird sie beim Zurückkommen still übernommen (nicht bei offenem Sheet
+  oder im Bearbeiten-Modus).
+- **Selbstreparatur:** Fehlen Dateien im Cache (z. B. weil eine andere App unter
+  `w2nmh9s45b-bot.github.io` im Browser alle Caches geräumt hat), lädt der Worker beim
+  nächsten Start mit Netz alles neu nach. Zyklus selbst räumt nur Caches mit dem
+  Präfix `zyklus-` weg.
+- **Version:** `Werkzeuge/stempeln.sh` bildet eine Prüfsumme über alle App-Dateien und
+  schreibt sie identisch in `sw.js` (`var VERSION`) und `app.js` (`var APP_VERSION`).
+  Daran erkennt die laufende Seite, ob der Speicher schon eine neuere Fassung hält.
+  Nie von Hand ändern – der pre-commit-Hook stempelt automatisch (siehe „Deploy").
+
+## Sicherung
+
+Plan, Übungsdatenbank und Haken lassen sich als Datei mitnehmen – wichtig, weil
+**Safari und die installierte App getrennte Speicher haben** (ebenso ein neues Handy):
+
+- **Sicherung speichern** (Zyklus-Sheet oder Installationskarte): öffnet das
+  Teilen-Menü („In Dateien sichern", AirDrop, Mail …), sonst Download.
+  Datei `Zyklus-Sicherung-JJJJ-MM-TT.json` = `{ app:"zyklus", format:1, exported, data }`,
+  `data` ist der komplette Speicherstand.
+- **Sicherung laden:** Datei wählen → Rückfrage mit Datum, Wochen und Trainingstagen →
+  „Übernehmen" ersetzt Plan, Datenbank und Haken. Der Stand davor bleibt unter
+  `zyklus.v2.vor-import` im Speicher. Ungültige Dateien werden abgewiesen, ohne etwas
+  zu ändern; ein roher `zyklus.v2`-Inhalt wird ebenfalls angenommen.
+
+Umzug Safari → installierte App: in Safari „Sicherung speichern" → „In Dateien sichern";
+in der App vom Home-Bildschirm Wochen-Badge → „Sicherung laden" → Datei wählen.
+
 ## Speicherung
 
 Alles liegt im `localStorage` des Browsers unter dem Schlüssel `zyklus.v2`:
 der komplette Plan, die Übungsdatenbank und pro Kalendertag (`YYYY-MM-DD`,
-Tagesgrenze **04:00**) Haken samt Zeitstempeln, Workout-Start und -Stopp sowie
-die Pausen (`pauses` als Liste von Beginn/Ende-Paaren; Ende 0 = läuft noch).
+Tagesgrenze **04:00**) die Haken (`checks`: Übungs-uid → Zeitpunkt des Abhakens, nur für
+die Reihenfolge im Kalender; 0 = nachgetragen). Ältere Stände enthalten noch `start`, `end`
+und `pauses` der früheren Workout-Uhr; die Felder bleiben liegen und werden nicht mehr gelesen.
+Tage, an denen nur die Uhr gestartet, aber nichts abgehakt wurde, fallen beim Laden weg.
 Ältere Tage bleiben **400 Tage** für den Kalender abrufbar. Ein Altbestand der
 ersten App-Version (`zyklus.v1`) wird beim ersten Start automatisch übernommen.
+
+Nebenschlüssel: `zyklus.v2.vor-import` (Stand vor dem letzten Sicherungs-Import),
+`zyklus.v2.corrupt` (erster defekter Stand), `zyklus.v2.offline-bereit` (Meldung
+„Offline bereit" schon gezeigt), `zyklus.v2.installhinweis` (Installationskarte
+ausgeblendet). Die App-Dateien selbst liegen im Cache `zyklus-<VERSION>`.
 
 ## Dateien
 
 | Datei | Zweck |
 |---|---|
-| `index.html` | Gerüst, PWA-Metadaten, Sheets (Basics, Zyklus, Übung hinzufügen, Datenbank) |
-| `styles.css` | gesamtes Layout, Dark-Mode fest, Animationen (Reveal, Burst, Konfetti) |
-| `app.js` | Darstellung, Abhaken, Timer, Plan-Editor, Datenbank, Speicherung, Zyklusrechnung |
+| `index.html` | Gerüst, PWA-Metadaten, Sheets (Basics, Zyklus inkl. „App auf diesem Gerät", Übung hinzufügen, Archiv, Detailfenster, Kalender) |
+| `styles.css` | gesamtes Layout, Dark-Mode fest, Animationen (Reveal, Burst, Konfetti, Hinweis-Pille) |
+| `app.js` | Darstellung, Abhaken, Übungskatalog (Archiv, Detailfenster), Plan-Editor, Datenbank, Speicherung, Zyklusrechnung, Offline-Status, Updates, Installationskarte, Sicherung |
 | `data.js` | der **Startplan** (`window.PLAN`) aus der Excel – nur noch Seed beim ersten Start |
-| `sw.js` | Service Worker für den Offline-Betrieb |
+| `animation.js` | Renderer der Übungsanimationen (Kinematik, Interpolation, Kamera, Formen, Canvas 2D) |
+| `daten/` | erzeugter Übungskatalog: `uebungen-index.json`, `equipment.json`, `uebungen/<id>.json` |
+| `daten-import/` | Quellen des Katalogs, Spezifikation, Architektur-Empfehlung, Referenzskripte, `korrekturen.json` |
+| `scripts/` | `split-uebungen.mjs`, `validate-daten.mjs`, `korrekturen.mjs`, `geometrie.mjs`, `vertikalschnitt.json` |
+| `tests/`, `package.json` | Unit-Tests (`npm test`); package.json nur mit Skripten, ohne Abhängigkeiten |
+| `sw.js` | Service Worker: offline zuerst, atomare Updates, Selbstreparatur |
 | `manifest.webmanifest`, `icons/` | Homescreen-Icon und App-Metadaten |
+| `Werkzeuge/stempeln.sh` | Version aus dem Dateiinhalt in `sw.js` + `app.js` schreiben (`--pruefen`, `--liste`, `--hook-einrichten`) |
+| `.githooks/pre-commit` | stempelt vor jedem Commit automatisch (Starter via `--hook-einrichten`) |
 
 ## Plan per Excel ändern (optional)
 
@@ -102,10 +196,25 @@ Startplan: Bestandsinstallationen behalten ihren gespeicherten Plan, bis in der 
 „Plan auf Startplan zurücksetzen" gewählt wird. Format wie gehabt
 (`window.PLAN = { weeks: […], basics: {…} }`).
 
-**Wichtig nach jeder Änderung:** in `sw.js` die Zeile `var CACHE = "zyklus-v4"`
-hochzählen, sonst liefert der Service Worker auf dem iPhone weiter die alte Version.
+Nach jeder Änderung an einer App-Datei muss die Version neu gestempelt werden, sonst
+bleibt das iPhone auf der alten Fassung – das erledigt der pre-commit-Hook beim Commit
+(von Hand: `bash Werkzeuge/stempeln.sh`).
 
 ## Deploy
 
 GitHub Pages, Repo `w2nmh9s45b-bot/trainingsplan`, Branch `main`, Ordner `/`.
 Ablauf siehe Skill `deploy-pages`.
+
+1. Einmalig je Klon: `bash Werkzeuge/stempeln.sh --hook-einrichten` – legt einen kleinen
+   Starter in `.git/hooks/pre-commit` an, der `.githooks/pre-commit` per `bash` aufruft
+   (unabhängig von Ausführungsrechten, die beim Browser-Upload auf GitHub verloren gehen).
+2. Committen – der Hook stempelt `sw.js` und `app.js` und nimmt sie mit auf. Er bricht ab,
+   wenn App-Dateien nicht vorgemerkte Änderungen haben oder eine Datei aus `ASSETS` nicht
+   im Repo liegt.
+3. **Browser-Upload statt Push** (kein Token): Der Hook läuft dabei nicht – vorher selbst
+   `bash Werkzeuge/stempeln.sh` ausführen und `sw.js` + `app.js` immer mit hochladen.
+4. Vor dem Veröffentlichen: `bash Werkzeuge/stempeln.sh --pruefen` muss „aktuell" melden.
+5. Danach: `var VERSION` in der Live-`sw.js` muss der lokalen entsprechen.
+
+Auf dem iPhone: App einmal mit Internet öffnen – die neue Fassung lädt im Hintergrund,
+danach „Aktualisieren" antippen (oder beim nächsten Start automatisch).

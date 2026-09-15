@@ -1,0 +1,592 @@
+{
+  "meta": {
+    "erstellt": "2026-09-13",
+    "quelle": "34 Amazon-Screenshots (App, iPhone), von Moritz am 13.09.2026 bereitgestellt",
+    "trainingsort": "Homegym",
+    "hinweis_unsicher": "unsicher=true bedeutet: Gerät ist auf einem Screenshot zu sehen, aber Kauf oder exakte Variante ist aus dem Bild nicht eindeutig belegt. Moritz hat entschieden, alle abgebildeten Geräte als vorhanden zu behandeln; die unsicheren stehen zusätzlich in bericht.md zur Bestätigung.",
+    "koerpermodell_referenz": "Alle Maße in Metern. Siehe animations-spezifikation.md für Skelett und Koordinatensystem.",
+    "anzahl_geraete": 38
+  },
+  "geraete": [
+    {
+      "id": "boxsack",
+      "name": "Bad Company Retro Boxsack 120 x 35 cm, gefüllt",
+      "typ": "schlagziel",
+      "marke_modell": "Bad Company Retro, Kunstleder, inkl. Heavy-Duty-Vierpunkt-Stahlkette",
+      "groessen": ["120 x 35 cm (gewählte Variante)", "Stil: gefüllt"],
+      "geometrie": {
+        "grundform": "zylinder",
+        "masse_m": [0.35, 1.2, 0.35],
+        "aufhaengung": "Vierpunkt-Stahlkette an Decke oder Wandhalterung; Kette ca. 0.30 m",
+        "position_standard_m": [0.0, 1.35, 0.85],
+        "bindung_default": "decke",
+        "beschreibung": "Aufrecht hängender Zylinder. Unterkante ca. 0.75 m über Boden, Oberkante ca. 1.95 m. Darf in der Animation um bis zu 12° aus der Senkrechten pendeln."
+      },
+      "unsicher": false,
+      "unsicher_grund": null
+    },
+    {
+      "id": "boxhandschuhe",
+      "name": "RDX Boxhandschuhe Kara (Maya Hide Leder)",
+      "typ": "schutzausruestung",
+      "marke_modell": "RDX Kara, Farbe Schwarz",
+      "groessen": ["Herstellerangebot 8/10/12/14/16/18 oz", "tatsächliche oz-Größe auf dem Screenshot nicht gewählt"],
+      "geometrie": {
+        "grundform": "abgerundeter_quader",
+        "masse_m": [0.16, 0.17, 0.3],
+        "bindung_default": "hand_l+hand_r",
+        "beschreibung": "Pro Hand ein Faustkörper. Langachse zeigt in Verlängerung des Unterarms nach vorn, Faustfläche als Stirnseite."
+      },
+      "unsicher": true,
+      "unsicher_grund": "oz-Größe nicht erkennbar (Variantenauswahl im Screenshot nicht sichtbar)"
+    },
+    {
+      "id": "boxbandagen",
+      "name": "Boxbandagen (zwei Sätze)",
+      "typ": "schutzausruestung",
+      "marke_modell": "Venum Kontakt Boxbandagen; zusätzlich RDX Gel-Innenhandschuhe mit 100 cm Handgelenkbandage, Schwarz",
+      "groessen": ["Venum: Länge im Screenshot nicht sichtbar", "RDX: 100 cm Handgelenkband"],
+      "geometrie": {
+        "grundform": "wickel",
+        "masse_m": [0.1, 0.1, 0.03],
+        "bindung_default": "hand_l+hand_r",
+        "beschreibung": "Für die Animation vernachlässigbar dünn; wird nicht als eigenes Objekt gezeichnet, nur in der Anleitung erwähnt."
+      },
+      "unsicher": true,
+      "unsicher_grund": "Venum-Länge nicht lesbar"
+    },
+    {
+      "id": "schienbeinschoner",
+      "name": "MADGON Schienbeinschoner mit Spannschutz",
+      "typ": "schutzausruestung",
+      "marke_modell": "MADGON, Schwarz/Schwarz",
+      "groessen": ["Größe im Screenshot nicht gewählt"],
+      "geometrie": {
+        "grundform": "schale",
+        "masse_m": [0.13, 0.38, 0.08],
+        "bindung_default": "knie_l+knie_r (Segment Knie→Fuß, vordere Seite)",
+        "beschreibung": "Liegt der Schienbeinvorderseite an, Fußspann-Lasche über dem Knöchel. Wird nur bei Kontakt-Übungen gezeichnet."
+      },
+      "unsicher": true,
+      "unsicher_grund": "Größe nicht erkennbar"
+    },
+    {
+      "id": "knieschoner",
+      "name": "RDX Knieschoner (Schaumstoff, gepolstert)",
+      "typ": "schutzausruestung",
+      "marke_modell": "RDX, Schwarz",
+      "groessen": ["Größe im Screenshot nicht gewählt"],
+      "geometrie": {
+        "grundform": "torus",
+        "masse_m": [0.15, 0.17, 0.15],
+        "bindung_default": "knie_l+knie_r",
+        "beschreibung": "Manschette um das Kniegelenk, vorne verdickt."
+      },
+      "unsicher": true,
+      "unsicher_grund": "Größe nicht erkennbar"
+    },
+    {
+      "id": "ellenbogenbandage",
+      "name": "CAMBIVO Ellenbogenbandage, 2 Stück",
+      "typ": "schutzausruestung",
+      "marke_modell": "CAMBIVO",
+      "groessen": ["Größe im Screenshot nicht gewählt"],
+      "geometrie": {
+        "grundform": "manschette",
+        "masse_m": [0.11, 0.17, 0.11],
+        "bindung_default": "ellbogen_l+ellbogen_r",
+        "beschreibung": "Elastische Manschette, wird in der Animation nicht gezeichnet."
+      },
+      "unsicher": true,
+      "unsicher_grund": "Größe nicht erkennbar"
+    },
+    {
+      "id": "handgelenkbandage",
+      "name": "FITGRIFF Handgelenkbandagen [Wrist Wraps] 45 cm",
+      "typ": "schutzausruestung",
+      "marke_modell": "Fitgriff, Schwarz",
+      "groessen": ["45 cm"],
+      "geometrie": {
+        "grundform": "wickel",
+        "masse_m": [0.09, 0.09, 0.09],
+        "bindung_default": "hand_l+hand_r",
+        "beschreibung": "Wird in der Animation nicht gezeichnet."
+      },
+      "unsicher": false,
+      "unsicher_grund": null
+    },
+    {
+      "id": "springseil",
+      "name": "GRIFEMA GA5004 Speed Rope, verstellbar",
+      "typ": "kleingeraet",
+      "marke_modell": "GRIFEMA GA5004, Stahlseil mit Schaumgriffen, Einheitsgröße",
+      "groessen": ["längenverstellbar"],
+      "geometrie": {
+        "grundform": "seil_mit_griffen",
+        "masse_m": [0.9, 2.9, 0.5],
+        "bindung_default": "hand_l+hand_r",
+        "beschreibung": "Griffe je 0.15 m lang, Ø 0.03, in den Händen. Seil ca. 2.90 m, wird als Bogen von Hand über Kopf bzw. unter den Füßen durch gezeichnet."
+      },
+      "unsicher": false,
+      "unsicher_grund": null
+    },
+    {
+      "id": "widerstandsbaender",
+      "name": "Fokky Widerstandsbänder-Set, 5 Stufen, mit Türanker, 2 Griffen und Fußschlaufe",
+      "typ": "kleingeraet",
+      "marke_modell": "Fokky Fitnessbänder",
+      "groessen": ["gelb (leichteste)", "rot 15-35 lbs", "schwarz 25-65 lbs", "lila 35-85 lbs", "grün 50-125 lbs"],
+      "geometrie": {
+        "grundform": "endlosband",
+        "masse_m": [0.045, 2.08, 0.005],
+        "bindung_default": "frei (Türanker=wand, Griffe=hand_l/hand_r, Schlaufe=fuss_l/fuss_r)",
+        "beschreibung": "Loop-Band, Umfang ca. 2.08 m, Breite je nach Stufe 0.013-0.045 m. Wird als gerade Linie zwischen Ankerpunkt und Hand/Fuß gezeichnet, Länge dehnt sich mit der Bewegung."
+      },
+      "unsicher": false,
+      "unsicher_grund": null
+    },
+    {
+      "id": "koordinationsleiter",
+      "name": "talifoca Koordinationsleiter 6 m",
+      "typ": "koordination",
+      "marke_modell": "talifoca Trainingsleiter, Set mit 12 Kegeln und 4 Bodenankern",
+      "groessen": ["6,0 m Länge", "12 Sprossen"],
+      "geometrie": {
+        "grundform": "platte_flach",
+        "masse_m": [0.5, 0.01, 6.0],
+        "position_standard_m": [0.0, 0.005, 0.0],
+        "bindung_default": "boden",
+        "beschreibung": "Flach am Boden liegend, Längsachse entlang Z. Sprossenabstand ca. 0.40 m, Innenbreite ca. 0.45 m."
+      },
+      "unsicher": false,
+      "unsicher_grund": null
+    },
+    {
+      "id": "markierungskegel",
+      "name": "Markierungskegel (Hütchen), 12 Stück",
+      "typ": "koordination",
+      "marke_modell": "aus dem talifoca-Set, 6 gelb / 6 rot",
+      "groessen": ["12 Stück"],
+      "geometrie": {
+        "grundform": "kegel",
+        "masse_m": [0.19, 0.05, 0.19],
+        "bindung_default": "boden",
+        "beschreibung": "Flacher Markierungskegel, Höhe 0.05 m, Basisdurchmesser 0.19 m."
+      },
+      "unsicher": false,
+      "unsicher_grund": null
+    },
+    {
+      "id": "bodenanker-heringe",
+      "name": "Bodenanker (Heringe), 4 Stück",
+      "typ": "koordination",
+      "marke_modell": "aus dem talifoca-Set",
+      "groessen": ["4 Stück, ca. 0,25-0,30 m"],
+      "geometrie": {
+        "grundform": "stab",
+        "masse_m": [0.02, 0.28, 0.02],
+        "bindung_default": "boden",
+        "beschreibung": "Metallhering zum Fixieren der Leiter im Außenbereich. Keine eigene Übungsfunktion, wird nicht animiert."
+      },
+      "unsicher": true,
+      "unsicher_grund": "Im Set-Bild als vier dünne Metallstäbe erkennbar; Länge nicht bemaßt. Es handelt sich um Erdnägel für die Leiter, NICHT um Slalomstangen."
+    },
+    {
+      "id": "hantelbank",
+      "name": "YOLEO klappbare Hantelbank, multifunktional",
+      "typ": "grossgeraet",
+      "marke_modell": "YOLEO, Schwarz, mit Ständern, Ablage und Beincurl-Rolle",
+      "groessen": ["Rückenlehne mehrstufig verstellbar (flach, schräg, aufrecht)"],
+      "geometrie": {
+        "grundform": "verbund",
+        "masse_m": [0.6, 0.45, 1.25],
+        "position_standard_m": [0.0, 0.0, 0.0],
+        "bindung_default": "boden",
+        "beschreibung": "Sitz-/Liegefläche 1.25 x 0.30 m in 0.45 m Höhe. Rückenlehne 0.60 m lang, um 0-80° nach oben klappbar, Drehpunkt am Sitzende. Zwei Hantelständer seitlich, Auflagehöhe ca. 1.05 m, Abstand 0.65 m. Beincurl-Rollenpaar am Fußende, Rollen Ø 0.10 m."
+      },
+      "unsicher": false,
+      "unsicher_grund": null
+    },
+    {
+      "id": "langhantelstange",
+      "name": "Amazon Basics Standard-Langhantelstange 152 cm",
+      "typ": "freihantel",
+      "marke_modell": "Amazon Basics, verchromt, Ø 2,5 cm, Sternverschlüsse",
+      "groessen": ["152 cm Länge", "Ø 25 mm (Standard, Scheibenbohrung 30 mm)"],
+      "geometrie": {
+        "grundform": "stange",
+        "masse_m": [1.52, 0.025, 0.025],
+        "bindung_default": "hand_l+hand_r",
+        "beschreibung": "Gerade Stange, Langachse entlang X. Greifpunkte symmetrisch zur Mitte, typ. Abstand 0.55-0.80 m."
+      },
+      "unsicher": true,
+      "unsicher_grund": "Kein Kaufbeleg im Screenshot sichtbar"
+    },
+    {
+      "id": "sz-stange",
+      "name": "SZ-Curlstange (2 Stück vorhanden)",
+      "typ": "freihantel",
+      "marke_modell": "MOVIT SZ-Curlset 120 cm, Ø 25 mm, verchromt (Set 55 kg); zusätzlich SZ-Stange aus dem Hop-Sport-37-kg-Set",
+      "groessen": ["120 cm (MOVIT)", "Ø 25 mm"],
+      "geometrie": {
+        "grundform": "stange_gebogen",
+        "masse_m": [1.2, 0.09, 0.025],
+        "bindung_default": "hand_l+hand_r",
+        "beschreibung": "W-förmig gebogene Stange, Amplitude der Biegung ca. 0.045 m in Y. Griffe in den beiden schrägen Abschnitten, Abstand ca. 0.30 m."
+      },
+      "unsicher": false,
+      "unsicher_grund": null
+    },
+    {
+      "id": "kurzhantelstangen",
+      "name": "Kurzhantelstangen, 2 Stück",
+      "typ": "freihantel",
+      "marke_modell": "aus dem Hop-Sport-Gusseisen-Hantelset 37 kg, mit Sternverschlüssen",
+      "groessen": ["2 Stück", "Ø 25 mm"],
+      "geometrie": {
+        "grundform": "stange",
+        "masse_m": [0.4, 0.025, 0.025],
+        "bindung_default": "hand_l bzw. hand_r (je eine)",
+        "beschreibung": "Kurze Stange pro Hand, Langachse quer zur Handachse. Mit Scheiben besetzt ergibt sich beidseits ein Scheibenpaket von ca. 0.12 m Durchmesser."
+      },
+      "unsicher": false,
+      "unsicher_grund": null
+    },
+    {
+      "id": "hantelscheiben",
+      "name": "Hantelscheiben, Bohrung 30 mm",
+      "typ": "freihantel",
+      "marke_modell": "Hop-Sport Gusseisen-Set 37 kg (Griffscheiben) + MOVIT Kunststoff-Scheiben aus dem 55-kg-SZ-Set",
+      "groessen": ["Hop-Sport-Set: Gesamtgewicht 37 kg inkl. Stangen, erkennbar u. a. 1,25 kg", "MOVIT-Set: Gesamtgewicht 55 kg inkl. Stange, erkennbar 5 kg und 10 kg", "Summe beider Sets ca. 92 kg inkl. Stangen"],
+      "geometrie": {
+        "grundform": "scheibe",
+        "masse_m": [0.3, 0.03, 0.3],
+        "bindung_default": "stange (langhantelstange, sz-stange, kurzhantelstangen, landmine-adapter, latzug, wrist-roller)",
+        "beschreibung": "Ronde mit Zentralbohrung 0.03 m. Durchmesser je nach Gewicht 0.16 m (1,25 kg) bis 0.30 m (10 kg), Dicke 0.02-0.04 m."
+      },
+      "unsicher": true,
+      "unsicher_grund": "Einzelgewichte und Stückzahlen sind auf den Produktbildern nur teilweise lesbar; die Aufteilung der Gesamtgewichte ist geschätzt"
+    },
+    {
+      "id": "kettlebell-12kg",
+      "name": "Amazon Basics Kettlebell 12 kg, Gusseisen",
+      "typ": "freihantel",
+      "marke_modell": "Amazon Basics, lackiert, breiter texturierter Griff",
+      "groessen": ["12 kg"],
+      "geometrie": {
+        "grundform": "kugel_mit_buegel",
+        "masse_m": [0.21, 0.29, 0.21],
+        "bindung_default": "hand_l oder hand_r oder beide",
+        "beschreibung": "Kugel Ø 0.21 m, darüber ein Bügel von 0.08 m Höhe und 0.13 m lichter Weite. Gegriffen wird der Bügelscheitel; die Kugel hängt in Richtung Schwerkraft bzw. folgt der Schwungbahn."
+      },
+      "unsicher": false,
+      "unsicher_grund": null
+    },
+    {
+      "id": "slamball-7kg",
+      "name": "MSPORTS Slam Ball 7 kg",
+      "typ": "wurfgeraet",
+      "marke_modell": "MSPORTS Premium Gewichtsball, Schwarz",
+      "groessen": ["7 kg"],
+      "geometrie": {
+        "grundform": "kugel",
+        "masse_m": [0.23, 0.23, 0.23],
+        "bindung_default": "beide_haende",
+        "beschreibung": "Vollgummiball ohne Rücksprung. Ø 0.23 m."
+      },
+      "unsicher": false,
+      "unsicher_grund": null
+    },
+    {
+      "id": "slamball-12kg",
+      "name": "Amazon Basics Slam Medicine Ball 12 kg",
+      "typ": "wurfgeraet",
+      "marke_modell": "Amazon Basics, genoppte Gummioberfläche",
+      "groessen": ["12 kg"],
+      "geometrie": {
+        "grundform": "kugel",
+        "masse_m": [0.28, 0.28, 0.28],
+        "bindung_default": "beide_haende",
+        "beschreibung": "Vollgummiball ohne Rücksprung. Ø 0.28 m."
+      },
+      "unsicher": true,
+      "unsicher_grund": "Kein Kaufbeleg im Screenshot; Variante 12 kg war lediglich ausgewählt"
+    },
+    {
+      "id": "bauchroller",
+      "name": "Amonax Bauchroller (Ab Wheel) mit Kniematte",
+      "typ": "kleingeraet",
+      "marke_modell": "Amonax, Doppelrad, rutschfest",
+      "groessen": ["Doppelrad"],
+      "geometrie": {
+        "grundform": "doppelrad_mit_achse",
+        "masse_m": [0.36, 0.18, 0.18],
+        "bindung_default": "hand_l+hand_r",
+        "beschreibung": "Zwei Räder Ø 0.18 m, Gesamtbreite 0.36 m, dazwischen eine Achse mit zwei Schaumgriffen von je 0.11 m. Achse liegt immer 0.09 m über dem Boden, das Rad rollt entlang Z."
+      },
+      "unsicher": false,
+      "unsicher_grund": null
+    },
+    {
+      "id": "liegestuetzgriffe",
+      "name": "Adkwse Liegestützgriffe, 2er-Set",
+      "typ": "kleingeraet",
+      "marke_modell": "Adkwse Push Up Bars, Orange/Schwarz, rutschfest",
+      "groessen": ["2 Stück"],
+      "geometrie": {
+        "grundform": "buegel",
+        "masse_m": [0.22, 0.13, 0.14],
+        "bindung_default": "boden (Hand greift den Bügel)",
+        "beschreibung": "H-förmiger Bügel, Grifffläche 0.13 m über dem Boden, Grifflänge 0.14 m. Standardaufstellung schulterbreit, 0.55 m Abstand."
+      },
+      "unsicher": true,
+      "unsicher_grund": "Kein Kaufbeleg im Screenshot, Artikel als 'derzeit nicht verfügbar' markiert"
+    },
+    {
+      "id": "dip-station",
+      "name": "RELIFE Dip Station / Parallettes, höhenverstellbar",
+      "typ": "grossgeraet",
+      "marke_modell": "RELIFE Rebuild Your Life, Dip Bar Barren, einstellbare Höhe",
+      "groessen": ["Höhe einstellbar"],
+      "geometrie": {
+        "grundform": "verbund",
+        "masse_m": [0.62, 0.72, 0.65],
+        "position_standard_m": [0.0, 0.0, 0.0],
+        "bindung_default": "boden",
+        "beschreibung": "Zwei parallele Holme, Holmhöhe 0.72 m (Bereich ca. 0.60-0.90 m), lichter Abstand 0.62 m, Holmlänge 0.65 m entlang Z, Ø 0.04 m. Standfüße als Querbügel am Boden."
+      },
+      "unsicher": true,
+      "unsicher_grund": "Höhe nicht abgelesen; verstellbar laut Titel"
+    },
+    {
+      "id": "power-tower",
+      "name": "JX FITNESS Kraftturm Power Tower",
+      "typ": "grossgeraet",
+      "marke_modell": "JX FITNESS Power Town, Multifunktions-Station",
+      "groessen": ["Klimmzugstange, Dip-Griffe, Beinheben-Station mit Rückenpolster und Armauflagen, untere Liegestützgriffe"],
+      "geometrie": {
+        "grundform": "verbund",
+        "masse_m": [1.1, 2.15, 0.95],
+        "position_standard_m": [0.0, 0.0, 0.0],
+        "bindung_default": "boden",
+        "beschreibung": "Rahmengestell. Klimmzugstange horizontal auf 2.10 m Höhe, Breite 1.10 m, Ø 0.035 m. Dip-Griffe waagerecht auf 1.15 m Höhe, lichter Abstand 0.60 m, Länge 0.45 m. Rückenpolster senkrecht bei 1.05-1.40 m, Armauflagen auf 1.15 m. Untere Liegestützgriffe auf 0.20 m."
+      },
+      "unsicher": true,
+      "unsicher_grund": "Kein Kaufbeleg im Screenshot; Maße aus dem Produktbild abgeleitet, nicht abgelesen"
+    },
+    {
+      "id": "dipguertel",
+      "name": "PULLUP & DIP Dip-Gürtel mit Kette und 3 Karabinern",
+      "typ": "zubehoer",
+      "marke_modell": "PULLUP & DIP, inkl. Neopren-Klappen, bis 250 kg",
+      "groessen": ["Einheitsgröße"],
+      "geometrie": {
+        "grundform": "guertel_mit_kette",
+        "masse_m": [0.34, 0.8, 0.2],
+        "bindung_default": "becken",
+        "beschreibung": "Gürtel um das Becken, davor hängende Kette von 0.80 m, an der Scheiben oder eine Kettlebell hängen. Die Last hängt immer lotrecht unter dem Becken."
+      },
+      "unsicher": true,
+      "unsicher_grund": "Kein Kaufbeleg im Screenshot"
+    },
+    {
+      "id": "gewichtsweste",
+      "name": "ISE verstellbare Gewichtsweste 20 kg",
+      "typ": "zubehoer",
+      "marke_modell": "ISE Weighted Vest, Gewichtstaschen entnehmbar",
+      "groessen": ["20 kg (gewählte Variante)", "Beladung reduzierbar"],
+      "geometrie": {
+        "grundform": "weste",
+        "masse_m": [0.42, 0.55, 0.18],
+        "bindung_default": "brust",
+        "beschreibung": "Umschließt Rumpf von Schulter bis Becken, folgt der Orientierung von brust und becken. Wird als schmale Schale um den Rumpf gezeichnet."
+      },
+      "unsicher": false,
+      "unsicher_grund": null
+    },
+    {
+      "id": "nackengeschirr",
+      "name": "DMoose Nackengeschirr (Head Harness) mit Stahlkette",
+      "typ": "zubehoer",
+      "marke_modell": "DMoose Fitness, verstellbarer Kopf- und Kinnriemen, 76,2 cm Kette, Militärgrün",
+      "groessen": ["Kette 0,762 m"],
+      "geometrie": {
+        "grundform": "geschirr_mit_kette",
+        "masse_m": [0.22, 0.762, 0.22],
+        "bindung_default": "kopf",
+        "beschreibung": "Riemen um den Kopf, zwei Ketten laufen vom Scheitelbereich nach vorn-unten zu einer Scheibe. Die Last hängt lotrecht, Kettenlänge 0.76 m."
+      },
+      "unsicher": false,
+      "unsicher_grund": null
+    },
+    {
+      "id": "gewichthebeguertel",
+      "name": "FITGRIFF Gewichthebergürtel V1",
+      "typ": "zubehoer",
+      "marke_modell": "Fitgriff V1, Schwarz, Größe XL (97-108 cm Bauchumfang)",
+      "groessen": ["XL, 97-108 cm"],
+      "geometrie": {
+        "grundform": "guertel",
+        "masse_m": [0.34, 0.15, 0.22],
+        "bindung_default": "becken",
+        "beschreibung": "Wird in der Animation nicht gezeichnet, nur in der Anleitung erwähnt."
+      },
+      "unsicher": false,
+      "unsicher_grund": null
+    },
+    {
+      "id": "zughilfen",
+      "name": "Fitgriff Zughilfen (Lifting Straps), gepolstert",
+      "typ": "zubehoer",
+      "marke_modell": "Fitgriff",
+      "groessen": ["Einheitsgröße"],
+      "geometrie": {
+        "grundform": "schlaufe",
+        "masse_m": [0.05, 0.5, 0.02],
+        "bindung_default": "hand_l+hand_r",
+        "beschreibung": "Wird in der Animation nicht gezeichnet."
+      },
+      "unsicher": false,
+      "unsicher_grund": null
+    },
+    {
+      "id": "gewichtheberhaken",
+      "name": "WFX Gewichtheberhaken (Lifting Hooks)",
+      "typ": "zubehoer",
+      "marke_modell": "WFX, gummibeschichtet, 7 mm Neopren-Handgelenkpolster, Einheitsgröße",
+      "groessen": ["Einheitsgröße"],
+      "geometrie": {
+        "grundform": "haken",
+        "masse_m": [0.08, 0.18, 0.06],
+        "bindung_default": "hand_l+hand_r",
+        "beschreibung": "Wird in der Animation nicht gezeichnet."
+      },
+      "unsicher": false,
+      "unsicher_grund": null
+    },
+    {
+      "id": "wrist-roller",
+      "name": "LINSTER Unterarm-Handgelenk-Rollentrainer (Wrist Roller)",
+      "typ": "kleingeraet",
+      "marke_modell": "LINSTER, Nylon-Gurtband, Karabiner, Scheibenaufnahme",
+      "groessen": ["Gurtband ca. 1,0-1,2 m"],
+      "geometrie": {
+        "grundform": "stange_mit_gurt",
+        "masse_m": [0.45, 1.1, 0.04],
+        "bindung_default": "hand_l+hand_r",
+        "beschreibung": "Quer gehaltene Rolle, Länge 0.45 m, Ø 0.04 m, in beiden Händen vor dem Körper. Vom Mittelpunkt hängt ein Gurt nach unten, an dessen Ende eine Scheibe hängt; die Gurtlänge verkürzt sich beim Aufrollen."
+      },
+      "unsicher": false,
+      "unsicher_grund": null
+    },
+    {
+      "id": "latzug",
+      "name": "LFJ Fitness Latzug / Kabelzug (DIY-Latzugturm), Trizepsseil-Set",
+      "typ": "grossgeraet",
+      "marke_modell": "LFJ Fitness, Umlenkrolle mit Gurt, Trizepsseil, Scheibenaufnahme",
+      "groessen": ["Stil: Trizepsseil-Set (gewählte Variante)"],
+      "geometrie": {
+        "grundform": "verbund",
+        "masse_m": [0.2, 2.2, 0.2],
+        "position_standard_m": [0.0, 2.1, 0.0],
+        "bindung_default": "decke",
+        "beschreibung": "Umlenkrolle auf 2.10 m Höhe. Vom Rollenpunkt läuft ein Seil senkrecht nach unten zum Trizepsseil (zwei Stränge von je 0.35 m mit Endkugeln) und auf der Gegenseite senkrecht nach unten zur Scheibenaufnahme. Zugweg verändert beide Strangslängen gegenläufig."
+      },
+      "unsicher": true,
+      "unsicher_grund": "Kein Kaufbeleg im Screenshot; Montagehöhe nicht bekannt, 2.10 m ist eine Annahme"
+    },
+    {
+      "id": "landmine-adapter",
+      "name": "Ruffman Landmine-Support für Langhanteln 30 mm (T-Bar-Row)",
+      "typ": "zubehoer",
+      "marke_modell": "Ruffman, Gelenkhülse mit Scheibenfuß",
+      "groessen": ["für 30 mm"],
+      "geometrie": {
+        "grundform": "gelenkhuelse",
+        "masse_m": [0.3, 0.3, 0.3],
+        "bindung_default": "boden",
+        "beschreibung": "Hülse auf Kugelgelenk, Drehpunkt 0.12 m über Boden, beschwert mit aufgelegten Scheiben. Nimmt ein Stangenende auf; die Stange schwenkt frei um diesen Punkt."
+      },
+      "unsicher": true,
+      "unsicher_grund": "Kein Kaufbeleg im Screenshot, Artikel als 'derzeit nicht verfügbar' markiert"
+    },
+    {
+      "id": "klettertau",
+      "name": "Klettertau / Kletterseil 3,0 m, 30 mm Polyhanf",
+      "typ": "grossgeraet",
+      "marke_modell": "Hamburger Tauwerk-Fabrik, mit Aufhängeöse",
+      "groessen": ["3,0 m (gewählte Variante)", "Ø 30 mm"],
+      "geometrie": {
+        "grundform": "seil",
+        "masse_m": [0.03, 3.0, 0.03],
+        "position_standard_m": [0.0, 3.0, 0.0],
+        "bindung_default": "decke",
+        "beschreibung": "Hängt senkrecht von einem Deckenpunkt. Bei 3.0 m Seil und Deckenhöhe 3.0 m endet das Tau am Boden."
+      },
+      "unsicher": true,
+      "unsicher_grund": "Kein Kaufbeleg im Screenshot; Aufhängehöhe im Homegym unbekannt"
+    },
+    {
+      "id": "yogamatte",
+      "name": "ALPIDEX Yogamatte, rutschfest, TPE",
+      "typ": "untergrund",
+      "marke_modell": "ALPIDEX, phthalatfrei, zweifarbig schwarz/grau",
+      "groessen": ["Titel nennt 190 x 61 x 0,6 cm und 190 x 90 x 0,6 cm; welche Variante vorhanden ist, geht aus dem Screenshot nicht hervor"],
+      "geometrie": {
+        "grundform": "platte",
+        "masse_m": [0.61, 0.006, 1.9],
+        "position_standard_m": [0.0, 0.003, 0.0],
+        "bindung_default": "boden",
+        "beschreibung": "Flach am Boden, Längsachse entlang Z. Für die Animation wird die schmale Variante 0.61 m angenommen."
+      },
+      "unsicher": true,
+      "unsicher_grund": "Breite 61 cm oder 90 cm nicht unterscheidbar"
+    },
+    {
+      "id": "wadendehner-brett",
+      "name": "HuaMuDM Wadendehner-Schrägbrett aus Holz, 5 Neigungswinkel",
+      "typ": "kleingeraet",
+      "marke_modell": "HuaMuDM, Balance-/Dehnbrett mit rutschfester Auflage",
+      "groessen": ["5 einstellbare Neigungswinkel"],
+      "geometrie": {
+        "grundform": "keil",
+        "masse_m": [0.4, 0.2, 0.34],
+        "position_standard_m": [0.0, 0.0, 0.0],
+        "bindung_default": "boden",
+        "beschreibung": "Schräge Standfläche 0.40 x 0.34 m, Neigung einstellbar zwischen ca. 15° und 40°, tiefe Kante am Boden, hohe Kante bis 0.20 m. Der Sportler steht mit beiden Füßen darauf, Zehen zur hohen Kante."
+      },
+      "unsicher": true,
+      "unsicher_grund": "Kein Kaufbeleg im Screenshot; konkrete Winkelstufen nicht bemaßt"
+    },
+    {
+      "id": "handtrainer",
+      "name": "Gonex Handtrainer-Set, 5-teilig, mit Zählfunktion",
+      "typ": "kleingeraet",
+      "marke_modell": "Gonex Grip Strength Trainer Kit: Griffzange 5-60 kg verstellbar mit Zähler, Fingerdehner, Griffring, Knetball, Fingertrainer",
+      "groessen": ["Griffzange 5-60 kg in Stufen verstellbar"],
+      "geometrie": {
+        "grundform": "zange",
+        "masse_m": [0.14, 0.16, 0.05],
+        "bindung_default": "hand_l oder hand_r",
+        "beschreibung": "Wird in der Animation nur als kleiner Block in der Hand angedeutet."
+      },
+      "unsicher": true,
+      "unsicher_grund": "Kein Kaufbeleg im Screenshot, Artikel als 'derzeit nicht verfügbar' markiert"
+    },
+    {
+      "id": "tennisbaelle",
+      "name": "Wilson Champ Extra Duty Tennisbälle, 4er-Dose",
+      "typ": "kleingeraet",
+      "marke_modell": "Wilson Championship Extra Duty",
+      "groessen": ["4 Bälle"],
+      "geometrie": {
+        "grundform": "kugel",
+        "masse_m": [0.067, 0.067, 0.067],
+        "bindung_default": "hand_l oder hand_r oder frei",
+        "beschreibung": "Ø 0.067 m. Für Reaktionsübungen: freifliegend zwischen Hand und Wand, Flugbahn als Parabel."
+      },
+      "unsicher": false,
+      "unsicher_grund": null
+    }
+  ]
+}

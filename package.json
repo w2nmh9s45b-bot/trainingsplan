@@ -1,0 +1,9 @@
+{
+  "name": "zyklus",
+  "private": true,
+  "scripts": {
+    "daten": "node scripts/split-uebungen.mjs && npm run pruefen",
+    "pruefen": "node scripts/validate-daten.mjs && node scripts/geometrie.mjs",
+    "test": "node --test \"tests/**/*.{js,mjs,cjs}\""
+  }
+}

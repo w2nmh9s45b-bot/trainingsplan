@@ -1,7 +1,7 @@
 {
   "name": "Zyklus – Trainingsplan",
   "short_name": "Zyklus",
-  "description": "Editierbarer Trainingsplan im Wochen-Zyklus: Übungen abhaken, Plan anpassen, Workout-Zeit tracken.",
+  "description": "Editierbarer Trainingsplan im Wochen-Zyklus: Übungen abhaken, Plan anpassen, Anleitungen mit Animation.",
   "lang": "de",
   "start_url": "./index.html",
   "scope": "./",

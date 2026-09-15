@@ -1,0 +1,715 @@
+{
+  "format": 1,
+  "stand": "2026-09-13",
+  "zweck": "Korrekturen an daten-import/uebungen.json, ohne die gelieferte Datei zu verändern. scripts/split-uebungen.mjs wendet sie beim Erzeugen von daten/ an; scripts/validate-daten.mjs prüft, dass jeder Altwert noch stimmt.",
+  "entscheidung": "Moritz, 13.09.2026: Renderer strikt nach animations-spezifikation.md §10 (Gelenkbindung = lokaler Versatz). Positionen, die in den Daten als Weltkoordinate der Startpose stehen, werden über die Startpose in den lokalen Versatz umgerechnet; Objekte ohne eindeutige Deutung setzt Claude von Hand mit Begründung. Form seil: Enden längs X (±X/2), Länge = Y, Kettenlinie nach unten, X ≤ 0,05 m = Ring in der XZ-Ebene.",
+  "regel_umrechnung": "Automatisch umgerechnet, wenn die Weltdeutung näher am Gelenk liegt als die lokale, höchstens 0,35 m vom Gelenk entfernt ist und die lokale Deutung über 0,3 m daneben läge: lokal = R_gelenk(Phase 0)ᵀ · (position − P_gelenk(Phase 0)).",
+  "korrekturen": [
+    {
+      "uebung": "zirkeln-um-boxsack",
+      "objekt": 1,
+      "typ": "boxhandschuhe",
+      "vorher": {
+        "position": [
+          -0.12,
+          1.45,
+          0.18
+        ]
+      },
+      "aenderung": {
+        "position": [
+          -0.011,
+          -0.115,
+          0.029
+        ]
+      },
+      "grund": "position war die Weltkoordinate in Phase 0 (0.12 m am Gelenk hand_l; als lokaler Versatz gelesen 1.47 m daneben). Über die Startpose in den lokalen Versatz nach Spec §10 umgerechnet."
+    },
+    {
+      "uebung": "zirkeln-um-boxsack",
+      "objekt": 2,
+      "typ": "boxhandschuhe",
+      "vorher": {
+        "position": [
+          0.14,
+          1.48,
+          0.08
+        ]
+      },
+      "aenderung": {
+        "position": [
+          0.008,
+          -0.1,
+          -0.021
+        ]
+      },
+      "grund": "position war die Weltkoordinate in Phase 0 (0.10 m am Gelenk hand_r; als lokaler Versatz gelesen 1.49 m daneben). Über die Startpose in den lokalen Versatz nach Spec §10 umgerechnet."
+    },
+    {
+      "uebung": "kegel-distanzwechsel",
+      "objekt": 3,
+      "typ": "gewichtsweste",
+      "vorher": {
+        "position": [
+          0,
+          1.25,
+          0
+        ]
+      },
+      "aenderung": {
+        "position": [
+          -0.008,
+          0.044,
+          0.029
+        ]
+      },
+      "grund": "position war die Weltkoordinate in Phase 0 (0.05 m am Gelenk brust; als lokaler Versatz gelesen 1.25 m daneben). Über die Startpose in den lokalen Versatz nach Spec §10 umgerechnet."
+    },
+    {
+      "uebung": "klimmzug-obergriff-power-tower",
+      "objekt": 1,
+      "typ": "gewichtsweste",
+      "vorher": {
+        "position": [
+          0,
+          1.35,
+          0
+        ]
+      },
+      "aenderung": {
+        "position": [
+          0,
+          -0.165,
+          -0.007
+        ]
+      },
+      "grund": "position war die Weltkoordinate in Phase 0 (0.17 m am Gelenk brust; als lokaler Versatz gelesen 1.35 m daneben). Über die Startpose in den lokalen Versatz nach Spec §10 umgerechnet."
+    },
+    {
+      "uebung": "dip-power-tower-zusatzlast",
+      "objekt": 1,
+      "typ": "dipguertel",
+      "vorher": {
+        "position": [
+          0,
+          1.45,
+          0
+        ]
+      },
+      "aenderung": {
+        "position": [
+          0,
+          0,
+          0
+        ]
+      },
+      "grund": "position war die Weltkoordinate in Phase 0 (0.00 m am Gelenk becken; als lokaler Versatz gelesen 1.45 m daneben). Über die Startpose in den lokalen Versatz nach Spec §10 umgerechnet."
+    },
+    {
+      "uebung": "landmine-rudern-einarmig",
+      "objekt": 2,
+      "typ": "hantelscheiben",
+      "vorher": {
+        "position": [
+          0.2,
+          0.36,
+          0.22
+        ]
+      },
+      "aenderung": {
+        "position": [
+          -0.08,
+          -0.179,
+          0.109
+        ]
+      },
+      "grund": "position war die Weltkoordinate in Phase 0 (0.22 m am Gelenk hand_r; als lokaler Versatz gelesen 0.47 m daneben). Über die Startpose in den lokalen Versatz nach Spec §10 umgerechnet."
+    },
+    {
+      "uebung": "kettlebell-goblet-squat",
+      "objekt": 0,
+      "typ": "kettlebell-12kg",
+      "vorher": {
+        "position": [
+          0,
+          1.28,
+          0.2
+        ]
+      },
+      "aenderung": {
+        "position": [
+          0.2,
+          -0.027,
+          0.026
+        ]
+      },
+      "grund": "position war die Weltkoordinate in Phase 0 (0.20 m am Gelenk hand_l; als lokaler Versatz gelesen 1.30 m daneben). Über die Startpose in den lokalen Versatz nach Spec §10 umgerechnet."
+    },
+    {
+      "uebung": "rumaenisches-kreuzheben-langhantel",
+      "objekt": 0,
+      "typ": "langhantelstange",
+      "vorher": {
+        "position": [
+          0,
+          0.72,
+          0.18
+        ]
+      },
+      "aenderung": {
+        "position": [
+          0.257,
+          0.058,
+          0.174
+        ]
+      },
+      "grund": "position war die Weltkoordinate in Phase 0 (0.32 m am Gelenk hand_l; als lokaler Versatz gelesen 0.74 m daneben). Über die Startpose in den lokalen Versatz nach Spec §10 umgerechnet."
+    },
+    {
+      "uebung": "sackrunde-3-min-intervall",
+      "objekt": 1,
+      "typ": "boxhandschuhe",
+      "vorher": {
+        "position": [
+          -0.18,
+          1.45,
+          0.22
+        ]
+      },
+      "aenderung": {
+        "position": [
+          -0.058,
+          -0.096,
+          -0.024
+        ]
+      },
+      "grund": "position war die Weltkoordinate in Phase 0 (0.11 m am Gelenk hand_l; als lokaler Versatz gelesen 1.48 m daneben). Über die Startpose in den lokalen Versatz nach Spec §10 umgerechnet."
+    },
+    {
+      "uebung": "sackrunde-3-min-intervall",
+      "objekt": 2,
+      "typ": "boxhandschuhe",
+      "vorher": {
+        "position": [
+          0.18,
+          1.45,
+          0.18
+        ]
+      },
+      "aenderung": {
+        "position": [
+          0.07,
+          -0.051,
+          -0.096
+        ]
+      },
+      "grund": "position war die Weltkoordinate in Phase 0 (0.13 m am Gelenk hand_r; als lokaler Versatz gelesen 1.47 m daneben). Über die Startpose in den lokalen Versatz nach Spec §10 umgerechnet."
+    },
+    {
+      "uebung": "landmine-rotation-halbkreis",
+      "objekt": 2,
+      "typ": "hantelscheiben",
+      "vorher": {
+        "position": [
+          0,
+          1.12,
+          0.52
+        ]
+      },
+      "aenderung": {
+        "position": [
+          0.132,
+          0.091,
+          -0.004
+        ]
+      },
+      "grund": "position war die Weltkoordinate in Phase 0 (0.16 m am Gelenk hand_l; als lokaler Versatz gelesen 1.23 m daneben). Über die Startpose in den lokalen Versatz nach Spec §10 umgerechnet."
+    },
+    {
+      "uebung": "unterarmstuetz-armreichen-wechsel",
+      "objekt": 1,
+      "typ": "gewichtsweste",
+      "vorher": {
+        "position": [
+          0,
+          0.34,
+          0.18
+        ]
+      },
+      "aenderung": {
+        "position": [
+          0,
+          -0.117,
+          -0.024
+        ]
+      },
+      "grund": "position war die Weltkoordinate in Phase 0 (0.12 m am Gelenk brust; als lokaler Versatz gelesen 0.38 m daneben). Über die Startpose in den lokalen Versatz nach Spec §10 umgerechnet."
+    },
+    {
+      "uebung": "nackenbeugung-geschirr-sitz",
+      "objekt": 0,
+      "typ": "nackengeschirr",
+      "vorher": {
+        "position": [
+          0,
+          0.88,
+          -0.34
+        ]
+      },
+      "aenderung": {
+        "position": [
+          0,
+          -0.193,
+          -0.035
+        ]
+      },
+      "grund": "position war die Weltkoordinate in Phase 0 (0.20 m am Gelenk kopf; als lokaler Versatz gelesen 0.94 m daneben). Über die Startpose in den lokalen Versatz nach Spec §10 umgerechnet."
+    },
+    {
+      "uebung": "nackenstreckung-geschirr-vorgebeugter-sitz",
+      "objekt": 0,
+      "typ": "nackengeschirr",
+      "vorher": {
+        "position": [
+          0,
+          1.02,
+          0.28
+        ]
+      },
+      "aenderung": {
+        "position": [
+          0,
+          -0.151,
+          -0.195
+        ]
+      },
+      "grund": "position war die Weltkoordinate in Phase 0 (0.25 m am Gelenk kopf; als lokaler Versatz gelesen 1.06 m daneben). Über die Startpose in den lokalen Versatz nach Spec §10 umgerechnet."
+    },
+    {
+      "uebung": "seilspringen-grundsprung",
+      "objekt": 0,
+      "typ": "springseil",
+      "vorher": {
+        "position": [
+          -0.29,
+          0.9,
+          0.26
+        ],
+        "bindung": "hand_l",
+        "masse_m": [
+          0.9,
+          2.9,
+          0.5
+        ]
+      },
+      "aenderung": {
+        "bindung": "frei",
+        "position": [
+          0,
+          0.879,
+          0.386
+        ],
+        "position_pro_phase": [
+          [
+            0,
+            0.879,
+            0.386
+          ],
+          [
+            0,
+            0.909,
+            0.386
+          ],
+          [
+            0,
+            0.929,
+            0.386
+          ],
+          [
+            0,
+            0.889,
+            0.386
+          ]
+        ],
+        "masse_m": [
+          0.637,
+          1.909,
+          0.5
+        ]
+      },
+      "grund": "Springseil hing als Weltkoordinate an hand_l; eine Gelenkbindung kann ein Seil zwischen zwei Händen nicht abbilden. Jetzt je Phase Mitte zwischen den Fäusten (Weltkoordinate, position_pro_phase), Enden längs X im Faustabstand 0.64 m, Länge so, dass der tiefste Punkt knapp über dem Boden hängt."
+    },
+    {
+      "uebung": "seilspringen-boxer-step",
+      "objekt": 0,
+      "typ": "springseil",
+      "vorher": {
+        "position": [
+          -0.29,
+          0.9,
+          0.26
+        ],
+        "bindung": "hand_l",
+        "masse_m": [
+          0.9,
+          2.9,
+          0.5
+        ]
+      },
+      "aenderung": {
+        "bindung": "frei",
+        "position": [
+          -0.056,
+          0.889,
+          0.386
+        ],
+        "position_pro_phase": [
+          [
+            -0.056,
+            0.889,
+            0.386
+          ],
+          [
+            -0.043,
+            0.909,
+            0.386
+          ],
+          [
+            0,
+            0.929,
+            0.386
+          ],
+          [
+            0.056,
+            0.889,
+            0.386
+          ],
+          [
+            0.043,
+            0.909,
+            0.386
+          ]
+        ],
+        "masse_m": [
+          0.637,
+          1.928,
+          0.5
+        ]
+      },
+      "grund": "Springseil hing als Weltkoordinate an hand_l; eine Gelenkbindung kann ein Seil zwischen zwei Händen nicht abbilden. Jetzt je Phase Mitte zwischen den Fäusten (Weltkoordinate, position_pro_phase), Enden längs X im Faustabstand 0.64 m, Länge so, dass der tiefste Punkt knapp über dem Boden hängt."
+    },
+    {
+      "uebung": "seilspringen-double-under",
+      "objekt": 0,
+      "typ": "springseil",
+      "vorher": {
+        "position": [
+          -0.31,
+          0.88,
+          0.29
+        ],
+        "bindung": "hand_l",
+        "masse_m": [
+          0.9,
+          2.9,
+          0.5
+        ]
+      },
+      "aenderung": {
+        "bindung": "frei",
+        "position": [
+          0,
+          0.813,
+          0.346
+        ],
+        "position_pro_phase": [
+          [
+            0,
+            0.813,
+            0.346
+          ],
+          [
+            0,
+            0.883,
+            0.359
+          ],
+          [
+            0,
+            0.923,
+            0.359
+          ],
+          [
+            0,
+            0.893,
+            0.359
+          ],
+          [
+            0,
+            0.835,
+            0.351
+          ]
+        ],
+        "masse_m": [
+          0.7,
+          1.814,
+          0.5
+        ]
+      },
+      "grund": "Springseil hing als Weltkoordinate an hand_l; eine Gelenkbindung kann ein Seil zwischen zwei Händen nicht abbilden. Jetzt je Phase Mitte zwischen den Fäusten (Weltkoordinate, position_pro_phase), Enden längs X im Faustabstand 0.70 m, Länge so, dass der tiefste Punkt knapp über dem Boden hängt."
+    },
+    {
+      "uebung": "seilsprung-intervall-belastungssteuerung",
+      "objekt": 0,
+      "typ": "springseil",
+      "vorher": {
+        "position": [
+          0,
+          0.95,
+          -0.6
+        ],
+        "bindung": "hand_r",
+        "masse_m": [
+          0.9,
+          2.9,
+          0.5
+        ]
+      },
+      "aenderung": {
+        "bindung": "frei",
+        "position": [
+          0,
+          0.921,
+          0.387
+        ],
+        "position_pro_phase": [
+          [
+            0,
+            0.921,
+            0.387
+          ],
+          [
+            0,
+            1.02,
+            0.395
+          ],
+          [
+            0,
+            1.144,
+            0.388
+          ],
+          [
+            0,
+            0.957,
+            0.394
+          ]
+        ],
+        "masse_m": [
+          0.696,
+          2.017,
+          0.5
+        ]
+      },
+      "grund": "Springseil hing als Weltkoordinate an hand_r; eine Gelenkbindung kann ein Seil zwischen zwei Händen nicht abbilden. Jetzt je Phase Mitte zwischen den Fäusten (Weltkoordinate, position_pro_phase), Enden längs X im Faustabstand 0.70 m, Länge so, dass der tiefste Punkt knapp über dem Boden hängt."
+    },
+    {
+      "uebung": "pallof-press-band-stehend",
+      "objekt": 0,
+      "typ": "widerstandsbaender",
+      "vorher": {
+        "position": [
+          0.55,
+          1.28,
+          0.12
+        ],
+        "bindung": "hand_l",
+        "masse_m": [
+          0.045,
+          2.08,
+          0.005
+        ]
+      },
+      "aenderung": {
+        "bindung": "frei",
+        "position": [
+          0.51,
+          1.296,
+          0.321
+        ],
+        "position_pro_phase": [
+          [
+            0.51,
+            1.296,
+            0.321
+          ],
+          [
+            0.51,
+            1.153,
+            0.58
+          ],
+          [
+            0.51,
+            1.071,
+            0.654
+          ],
+          [
+            0.51,
+            1.205,
+            0.521
+          ]
+        ],
+        "masse_m": [
+          1.02,
+          1.02,
+          0.005
+        ]
+      },
+      "grund": "Band war als Mittelpunkt zwischen Wand und Händen in Weltkoordinaten an hand_l gebunden; mit X = 0,045 m wurde es nach der Seil-Regel zum Ring. Jetzt je Phase Mitte zwischen Fäusten und Wandfläche (x = 1.02), gespannt (Länge = Abstand 1.02 m)."
+    }
+  ],
+  "offen": [
+    {
+      "uebung": "sack-rhythmuswechsel-auf-signal",
+      "objekt": 1,
+      "typ": "boxhandschuhe",
+      "bindung": "hand_l",
+      "welt": 0.48,
+      "lokal": 1.44,
+      "hinweis": "Weder als Welt- noch als lokale Koordinate plausibel (Abstand zum Gelenk in Phase 0: welt/lokal in m). Wird vor der Freigabe der restlichen 62 Übungen von Hand gesetzt."
+    },
+    {
+      "uebung": "sack-rhythmuswechsel-auf-signal",
+      "objekt": 2,
+      "typ": "boxhandschuhe",
+      "bindung": "hand_r",
+      "welt": 0.4,
+      "lokal": 1.44,
+      "hinweis": "Weder als Welt- noch als lokale Koordinate plausibel (Abstand zum Gelenk in Phase 0: welt/lokal in m). Wird vor der Freigabe der restlichen 62 Übungen von Hand gesetzt."
+    },
+    {
+      "uebung": "dip-power-tower-zusatzlast",
+      "objekt": 2,
+      "typ": "hantelscheiben",
+      "bindung": "becken",
+      "welt": 0.8,
+      "lokal": 0.65,
+      "hinweis": "Weder als Welt- noch als lokale Koordinate plausibel (Abstand zum Gelenk in Phase 0: welt/lokal in m). Wird vor der Freigabe der restlichen 62 Übungen von Hand gesetzt."
+    },
+    {
+      "uebung": "langhantel-schraegbankdruecken",
+      "objekt": 1,
+      "typ": "langhantelstange",
+      "bindung": "hand_l",
+      "welt": 0.53,
+      "lokal": 1.32,
+      "hinweis": "Weder als Welt- noch als lokale Koordinate plausibel (Abstand zum Gelenk in Phase 0: welt/lokal in m). Wird vor der Freigabe der restlichen 62 Übungen von Hand gesetzt."
+    },
+    {
+      "uebung": "langhantel-schraegbankdruecken",
+      "objekt": 2,
+      "typ": "hantelscheiben",
+      "bindung": "hand_l",
+      "welt": 1.07,
+      "lokal": 1.44,
+      "hinweis": "Weder als Welt- noch als lokale Koordinate plausibel (Abstand zum Gelenk in Phase 0: welt/lokal in m). Wird vor der Freigabe der restlichen 62 Übungen von Hand gesetzt."
+    },
+    {
+      "uebung": "landmine-press-einarmig",
+      "objekt": 1,
+      "typ": "langhantelstange",
+      "bindung": "hand_r",
+      "welt": 0.68,
+      "lokal": 0.94,
+      "hinweis": "Weder als Welt- noch als lokale Koordinate plausibel (Abstand zum Gelenk in Phase 0: welt/lokal in m). Wird vor der Freigabe der restlichen 62 Übungen von Hand gesetzt."
+    },
+    {
+      "uebung": "landmine-rudern-einarmig",
+      "objekt": 1,
+      "typ": "langhantelstange",
+      "bindung": "hand_r",
+      "welt": 0.38,
+      "lokal": 0.7,
+      "hinweis": "Weder als Welt- noch als lokale Koordinate plausibel (Abstand zum Gelenk in Phase 0: welt/lokal in m). Wird vor der Freigabe der restlichen 62 Übungen von Hand gesetzt."
+    },
+    {
+      "uebung": "rumaenisches-kreuzheben-langhantel",
+      "objekt": 1,
+      "typ": "hantelscheiben",
+      "bindung": "hand_l",
+      "welt": 0.86,
+      "lokal": 0.94,
+      "hinweis": "Weder als Welt- noch als lokale Koordinate plausibel (Abstand zum Gelenk in Phase 0: welt/lokal in m). Wird vor der Freigabe der restlichen 62 Übungen von Hand gesetzt."
+    },
+    {
+      "uebung": "wrist-roller-unterarm",
+      "objekt": 0,
+      "typ": "wrist-roller",
+      "bindung": "hand_l",
+      "welt": 0.36,
+      "lokal": 1.49,
+      "hinweis": "Weder als Welt- noch als lokale Koordinate plausibel (Abstand zum Gelenk in Phase 0: welt/lokal in m). Wird vor der Freigabe der restlichen 62 Übungen von Hand gesetzt."
+    },
+    {
+      "uebung": "burpee-mit-schlagfolge",
+      "objekt": 1,
+      "typ": "boxhandschuhe",
+      "bindung": "hand_l",
+      "welt": 0.56,
+      "lokal": 1.48,
+      "hinweis": "Weder als Welt- noch als lokale Koordinate plausibel (Abstand zum Gelenk in Phase 0: welt/lokal in m). Wird vor der Freigabe der restlichen 62 Übungen von Hand gesetzt."
+    },
+    {
+      "uebung": "burpee-mit-schlagfolge",
+      "objekt": 2,
+      "typ": "boxhandschuhe",
+      "bindung": "hand_r",
+      "welt": 0.54,
+      "lokal": 1.47,
+      "hinweis": "Weder als Welt- noch als lokale Koordinate plausibel (Abstand zum Gelenk in Phase 0: welt/lokal in m). Wird vor der Freigabe der restlichen 62 Übungen von Hand gesetzt."
+    },
+    {
+      "uebung": "russian-twist-slamball",
+      "objekt": 0,
+      "typ": "slamball-7kg",
+      "bindung": "hand_l",
+      "welt": 0.86,
+      "lokal": 0.77,
+      "hinweis": "Weder als Welt- noch als lokale Koordinate plausibel (Abstand zum Gelenk in Phase 0: welt/lokal in m). Wird vor der Freigabe der restlichen 62 Übungen von Hand gesetzt."
+    },
+    {
+      "uebung": "landmine-rotation-halbkreis",
+      "objekt": 1,
+      "typ": "langhantelstange",
+      "bindung": "hand_l",
+      "welt": 0.59,
+      "lokal": 1.18,
+      "hinweis": "Weder als Welt- noch als lokale Koordinate plausibel (Abstand zum Gelenk in Phase 0: welt/lokal in m). Wird vor der Freigabe der restlichen 62 Übungen von Hand gesetzt."
+    },
+    {
+      "uebung": "nackenbeugung-geschirr-sitz",
+      "objekt": 1,
+      "typ": "hantelscheiben",
+      "bindung": "kopf",
+      "welt": 0.59,
+      "lokal": 0.61,
+      "hinweis": "Weder als Welt- noch als lokale Koordinate plausibel (Abstand zum Gelenk in Phase 0: welt/lokal in m). Wird vor der Freigabe der restlichen 62 Übungen von Hand gesetzt."
+    },
+    {
+      "uebung": "nackenstreckung-geschirr-vorgebeugter-sitz",
+      "objekt": 1,
+      "typ": "hantelscheiben",
+      "bindung": "kopf",
+      "welt": 0.62,
+      "lokal": 0.5,
+      "hinweis": "Weder als Welt- noch als lokale Koordinate plausibel (Abstand zum Gelenk in Phase 0: welt/lokal in m). Wird vor der Freigabe der restlichen 62 Übungen von Hand gesetzt."
+    },
+    {
+      "uebung": "schulter-aussenrotation-band",
+      "objekt": 0,
+      "typ": "widerstandsbaender",
+      "bindung": "hand_r",
+      "welt": 0.6,
+      "lokal": 1.14,
+      "hinweis": "Weder als Welt- noch als lokale Koordinate plausibel (Abstand zum Gelenk in Phase 0: welt/lokal in m). Wird vor der Freigabe der restlichen 62 Übungen von Hand gesetzt."
+    }
+  ]
+}
